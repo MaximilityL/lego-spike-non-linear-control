@@ -9,18 +9,29 @@ placeholder. Filling it in is a real piece of work and this file is the plan.
 A planar two wheel inverted pendulum on a flat floor. The body is a rigid pendulum free
 to rotate about the wheel axis. The wheels are driven by motors with finite torque.
 
-State vector
+Implemented state vector (current)
 
 ```
-x = [theta, thetaDot, p, pDot]^T
+x = [theta, thetaDot, phi, phiDot]^T
 ```
 
 where
 
-- `theta` is the body tilt angle around the wheel axis, with theta = 0 being upright.
+- `theta` is the body tilt angle around the wheel axis, with `theta = 0` being upright.
 - `thetaDot` is the body tilt rate.
-- `p` is the forward position of the wheel base along the floor.
-- `pDot` is the forward velocity of the wheel base along the floor.
+- `phi` is the **mean wheel rotation angle** in radians, taken as the average of the two
+  sign corrected wheel encoder angles. This is the implemented wheel motion state at this
+  stage of the project. It does **not** depend on the wheel radius.
+- `phiDot` is the mean wheel rotation rate in radians per second.
+
+The pure translation pair `p` (linear distance, m) and `pDot` (linear velocity, m/s) is a
+secondary, derived view. It is computed when needed via `p = r * phi` and
+`pDot = r * phiDot` using the chassis wheel radius. See `BalanceState.LinearPosition` and
+`BalanceState.LinearVelocity`. We do not store `p` or `pDot` on the state on purpose, so
+that the core estimator does not depend on a wheel radius calibration that may not yet be
+finalized. The Lyapunov design below is written in terms of the implemented state. If the
+controller cost is more naturally expressed in terms of `p`, the conversion is a single
+linear scaling that can be applied just before the cost is evaluated.
 
 Control input
 
@@ -87,10 +98,14 @@ desktop, against `examples/ClosedLoopSimulation.py`, before any hub deployment.
 
 ## 4. What Plugs In Where
 
-- **State estimator.** `StateEstimator.Update(measurement, dt)` returns a
-  `BalanceState`. Today it applies the configured IMU correction plus the wheel encoder
-  signs/radius to produce `theta`, `thetaDot`, `p`, and `pDot`. Replace the IMU body
-  with a complementary filter (or a Kalman filter if you prefer).
+- **State estimator.** `StateEstimator.Update(measurement)` returns a `BalanceState`.
+  Today it applies the configured IMU sign correction (plus zero offset and gyro bias)
+  and averages the two sign corrected wheel encoder signals to produce
+  `theta`, `thetaDot`, `phi`, and `phiDot`. The translation pair `p` and `pDot` is not
+  part of the implemented state; it is computed on demand from `phi` and the wheel
+  radius via `BalanceState.LinearPosition` / `BalanceState.LinearVelocity`. Replace the
+  IMU body with a complementary filter (or a Kalman filter if you prefer) once the basic
+  pipeline is validated.
 - **Controller.** `LyapunovController.Compute(state)` returns a `ControlOutput`. Today
   it returns zero. Replace its body with the Lyapunov based control law from section 3.
 - **Safety.** `SafetyMonitor.Check(state, control)` is already wired and will gate the

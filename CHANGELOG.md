@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2026-04-07
+
+### Changed
+- Promoted the hardware-verified drive smoke convention into the desktop defaults: left motor on port `B`, right motor on port `A`, `motors.forwardSign = -1`, `1000 deg/s` as `17.4532925199 rad/s`, and a `50 deg` pre-balancing drive gate.
+- Locked the package contract around the implemented estimator state `x = [theta, thetaDot, phi, phiDot]`, where `phi` and `phiDot` are mean wheel rotation states and the linear `p` / `pDot` view is derived only when a wheel radius is needed.
+- Defined `ControlOutput` in the controller/chassis frame: positive velocity means forward wheel-base motion and increasing `phi`; raw motor sign flips remain at the hardware adapter or hub-script boundary.
+- Updated mock measurement conversion so desktop simulations and smoke flows undo the hardware signs before feeding `StateEstimator`, preserving the same state direction as the real hub run.
+- Aligned `HubMain.py`, `HubDriveSmoke.py`, `PlotHubDriveSmoke.py`, config docs, and tests with the same hardware-validated signs, limits, and state notation.
+
+### Added
+- Added `DriveCommandController` as the non-balancing forward / backward / stop command path used to exercise the estimator + safety + motor pipeline before the upright controller is implemented.
+- Added desktop and hub drive-smoke flows plus a post-run diagnostic plot for `[theta, thetaDot, phi, phiDot]`, wheel command, and drive-gate status.
+- Added pre-balancing flow tests that prove forward commands produce increasing `phi`, drive-gate violations stop motion without tripping the absolute safety monitor, and the future controller boundary remains shape-compatible.
+
 ## [1.0.1] - 2026-04-07
 
 ### Changed

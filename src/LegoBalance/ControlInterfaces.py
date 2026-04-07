@@ -30,10 +30,13 @@ class ControlOutput:
     """One step of controller output.
 
     Attributes:
-        leftCommand: Command for the left wheel motor in the units implied
-            by ``mode``.
-        rightCommand: Command for the right wheel motor in the units implied
-            by ``mode``.
+        leftCommand: Command for the left wheel in the controller/chassis
+            convention and in the units implied by ``mode``. Positive
+            velocity means forward wheel-base motion / increasing ``phi``;
+            hardware adapters apply motor mounting signs before calling raw
+            motor APIs.
+        rightCommand: Command for the right wheel in the same convention as
+            ``leftCommand``.
         mode: How the commands should be interpreted.
         timestamp: Time at which the controller produced this output.
     """

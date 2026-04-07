@@ -51,6 +51,11 @@ class SafetyMonitor:
         self._maxTiltRate = config.control.maxTiltRate
         self._maxWheelRate = config.control.maxWheelRate
         self._watchdogTimeout = config.control.watchdogTimeout
+        # Tighter cap used by the pre balancing drive command path. The
+        # drive controller is not allowed to push the wheels around once
+        # the body tilt has wandered past this. ``maxTilt`` is still the
+        # absolute upper bound that trips the monitor for any controller.
+        self._maxTiltForMotion = config.drive.maxTiltForMotion
 
     @property
     def status(self) -> SafetyStatus:
@@ -123,3 +128,17 @@ class SafetyMonitor:
     def StopCommand(self, mode: ControlMode = ControlMode.Velocity, timestamp: float = 0.0) -> ControlOutput:
         """Convenience: build a zero command without going through Check."""
         return ControlOutput.Stop(mode=mode, timestamp=timestamp)
+
+    def IsTiltSafeForDriveMotion(self, state: BalanceState) -> bool:
+        """Return ``True`` when the body tilt is small enough to allow drive motion.
+
+        Used by the pre balancing drive command path. The drive controller
+        is honest about not balancing anything, so we want a tighter limit
+        than the absolute :attr:`config.control.maxTilt` ceiling before we
+        let it command motion. Returning ``False`` here is meant as a soft
+        gate: callers should substitute a stop command rather than tripping
+        the safety monitor outright.
+        """
+        if not state.valid:
+            return False
+        return abs(state.tilt) <= self._maxTiltForMotion

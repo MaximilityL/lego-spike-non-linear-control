@@ -29,12 +29,12 @@ class ChassisConfig:
 
 @dataclass
 class MotorsConfig:
-    leftPort: str = "A"
-    rightPort: str = "B"
-    maxAngularRate: float = 10.0
+    leftPort: str = "B"
+    rightPort: str = "A"
+    maxAngularRate: float = 17.453292519943295
     maxDuty: float = 80.0
     encoderCountsPerRev: int = 360
-    forwardSign: int = 1
+    forwardSign: int = -1
     leftEncoderSign: int = 1
     rightEncoderSign: int = -1
 
@@ -57,10 +57,23 @@ class EstimatorConfig:
 @dataclass
 class ControlConfig:
     loopRate: float = 100.0
-    maxTilt: float = 0.6
+    maxTilt: float = 1.0
     maxTiltRate: float = 10.0
-    maxWheelRate: float = 10.0
+    maxWheelRate: float = 17.453292519943295
     watchdogTimeout: float = 0.2
+
+
+@dataclass
+class DriveConfig:
+    """Settings for the pre balancing drive command path.
+
+    These mirror the values validated by ``hub/HubDriveSmoke.py`` on the
+    real build. The forward/backward/stop smoke flows are still bench tests
+    with the wheels lifted, not autonomous motion.
+    """
+
+    testSpeed: float = 17.453292519943295  # rad/s, 1000 deg/s smoke command
+    maxTiltForMotion: float = 0.8726646259971648  # rad, 50 deg drive gate
 
 
 @dataclass
@@ -81,6 +94,7 @@ class RobotConfig:
     imu: ImuConfig = field(default_factory=ImuConfig)
     estimator: EstimatorConfig = field(default_factory=EstimatorConfig)
     control: ControlConfig = field(default_factory=ControlConfig)
+    drive: DriveConfig = field(default_factory=DriveConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
 
     def Validate(self) -> None:
@@ -105,6 +119,14 @@ class RobotConfig:
             raise ValueError("control.maxTilt must be positive")
         if self.imu.tiltSign not in (-1, 1):
             raise ValueError("imu.tiltSign must be +1 or -1")
+        if self.drive.testSpeed < 0:
+            raise ValueError("drive.testSpeed must be non negative")
+        if self.drive.maxTiltForMotion <= 0:
+            raise ValueError("drive.maxTiltForMotion must be positive")
+        if self.drive.maxTiltForMotion > self.control.maxTilt:
+            raise ValueError(
+                "drive.maxTiltForMotion must be less than or equal to control.maxTilt"
+            )
 
 
 def DeepMerge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
@@ -131,6 +153,7 @@ def _DictToConfig(data: dict[str, Any]) -> RobotConfig:
         imu=ImuConfig(**(data.get("imu", {}) or {})),
         estimator=EstimatorConfig(**(data.get("estimator", {}) or {})),
         control=ControlConfig(**(data.get("control", {}) or {})),
+        drive=DriveConfig(**(data.get("drive", {}) or {})),
         logging=LoggingConfig(**(data.get("logging", {}) or {})),
     )
 

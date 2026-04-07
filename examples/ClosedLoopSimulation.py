@@ -44,13 +44,21 @@ def BuildMeasurement(hub: MockHub, config: RobotConfig, currentTimeSec: float) -
     the raw sensor convention expected by StateEstimator, which then applies
     the same config signs and offsets used for hardware.
     """
+    rawLeftAngle = config.motors.leftEncoderSign * config.motors.forwardSign * hub.LeftMotor.Angle()
+    rawRightAngle = (
+        config.motors.rightEncoderSign * config.motors.forwardSign * hub.RightMotor.Angle()
+    )
+    rawLeftRate = config.motors.leftEncoderSign * config.motors.forwardSign * hub.LeftMotor.Velocity()
+    rawRightRate = (
+        config.motors.rightEncoderSign * config.motors.forwardSign * hub.RightMotor.Velocity()
+    )
     return Measurement(
         tiltAngle=config.imu.tiltSign * (hub.Imu.TiltAngleRadians() - config.imu.zeroOffset),
         tiltRate=config.imu.tiltSign * (hub.Imu.TiltRateRadiansPerSec() + config.imu.gyroBias),
-        leftWheelAngle=config.motors.leftEncoderSign * hub.LeftMotor.Angle(),
-        rightWheelAngle=config.motors.rightEncoderSign * hub.RightMotor.Angle(),
-        leftWheelRate=config.motors.leftEncoderSign * hub.LeftMotor.Velocity(),
-        rightWheelRate=config.motors.rightEncoderSign * hub.RightMotor.Velocity(),
+        leftWheelAngle=rawLeftAngle,
+        rightWheelAngle=rawRightAngle,
+        leftWheelRate=rawLeftRate,
+        rightWheelRate=rawRightRate,
         timestamp=currentTimeSec,
         valid=True,
     )
@@ -96,10 +104,17 @@ def Main() -> int:
             break
 
     finalState = logger.Records()[-1].state
+    derivedP = finalState.LinearPosition(config.chassis.wheelRadius)
+    derivedPDot = finalState.LinearVelocity(config.chassis.wheelRadius)
     print(f"records collected : {len(logger)}")
     print(
-        f"final state       : tilt={finalState.tilt:+.3f} rad, tiltRate={finalState.tiltRate:+.3f} rad/s, "
-        f"p={finalState.wheelPosition:+.3f} m, pDot={finalState.wheelVelocity:+.3f} m/s"
+        f"final state       : theta={finalState.tilt:+.3f} rad, "
+        f"thetaDot={finalState.tiltRate:+.3f} rad/s, "
+        f"phi={finalState.phi:+.3f} rad, phiDot={finalState.phiDot:+.3f} rad/s"
+    )
+    print(
+        f"derived (r used)  : p={derivedP:+.3f} m, pDot={derivedPDot:+.3f} m/s "
+        f"(secondary view, computed from phi using wheel radius)"
     )
     print(f"safety armed      : {safety.status.armed}")
     print(f"safety tripped    : {safety.status.tripped}")

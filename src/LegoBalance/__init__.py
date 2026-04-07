@@ -5,10 +5,11 @@ This package never imports from ``pybricks``. Code under ``hub/`` does. The spli
 is intentional and is documented in ``docs/ArchitectureOverview.md``.
 """
 
-from .BalanceState import BalanceState
+from .BalanceState import BalanceState, StateBounds
 from .ControlInterfaces import ControlMode, ControlOutput, Measurement
 from .ControllerBase import ControllerBase
 from .DataLogger import DataLogger
+from .DriveCommandController import DriveCommand, DriveCommandController
 from .HubInterface import HubInterface
 from .ImuInterface import ImuInterface
 from .LyapunovController import LyapunovController
@@ -27,6 +28,8 @@ __all__ = [
     "DataLogger",
     "DegPerSecToRadPerSec",
     "DegToRad",
+    "DriveCommand",
+    "DriveCommandController",
     "HubInterface",
     "ImuInterface",
     "LoadConfig",
@@ -40,7 +43,8 @@ __all__ = [
     "SafetyStatus",
     "SaturateScalar",
     "SaturateVector",
+    "StateBounds",
     "StateEstimator",
 ]
 
-__version__ = "1.0.0"
+__version__ = "1.0.2"

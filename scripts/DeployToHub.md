@@ -33,6 +33,7 @@ pybricksdev run ble hub/HubBluetoothTest.py
 pybricksdev run ble hub/HubImuTest.py
 pybricksdev run ble hub/HubEncoderTest.py
 pybricksdev run ble hub/HubMotorTest.py
+pybricksdev run ble hub/HubDriveSmoke.py
 ```
 
 If discovery fails, give it the hub name explicitly:
@@ -50,6 +51,21 @@ python scripts/PlotHubMainLive.py
 This opens one live state-vector figure for
 `x = [theta, theta_dot, p, p_dot]^T`. Add `--show-motors` if you also want
 raw left/right motor encoder plots as a diagnostic view.
+
+To run `HubDriveSmoke.py` and show a diagnostic plot after the forward/stop/backward
+schedule finishes:
+
+```bash
+python scripts/PlotHubDriveSmoke.py
+```
+
+The plotter launches `pybricksdev`, collects the hub `DATA` rows during the run, and then
+opens a static plot for `[theta, thetaDot, phi, phiDot]`, wheel command, and drive gate
+status.
+
+Do not run `pybricksdev run ble scripts/PlotHubDriveSmoke.py`; that file is the laptop
+plotter. Upload/run `hub/HubDriveSmoke.py`, or let `python scripts/PlotHubDriveSmoke.py`
+launch it for you.
 
 You can rename your hub from the gear icon in `code.pybricks.com`.
 

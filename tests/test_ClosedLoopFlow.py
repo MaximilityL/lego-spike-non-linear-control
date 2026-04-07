@@ -30,14 +30,26 @@ def test_PipelineRunsForFewIterationsWithoutErrors():
     dt = 0.01
     t = 0.0
     for _ in range(20):
+        rawLeftAngle = (
+            config.motors.leftEncoderSign * config.motors.forwardSign * hub.LeftMotor.Angle()
+        )
+        rawRightAngle = (
+            config.motors.rightEncoderSign * config.motors.forwardSign * hub.RightMotor.Angle()
+        )
+        rawLeftRate = (
+            config.motors.leftEncoderSign * config.motors.forwardSign * hub.LeftMotor.Velocity()
+        )
+        rawRightRate = (
+            config.motors.rightEncoderSign * config.motors.forwardSign * hub.RightMotor.Velocity()
+        )
         measurement = Measurement(
             tiltAngle=config.imu.tiltSign * (hub.Imu.TiltAngleRadians() - config.imu.zeroOffset),
             tiltRate=config.imu.tiltSign
             * (hub.Imu.TiltRateRadiansPerSec() + config.imu.gyroBias),
-            leftWheelAngle=config.motors.leftEncoderSign * hub.LeftMotor.Angle(),
-            rightWheelAngle=config.motors.rightEncoderSign * hub.RightMotor.Angle(),
-            leftWheelRate=config.motors.leftEncoderSign * hub.LeftMotor.Velocity(),
-            rightWheelRate=config.motors.rightEncoderSign * hub.RightMotor.Velocity(),
+            leftWheelAngle=rawLeftAngle,
+            rightWheelAngle=rawRightAngle,
+            leftWheelRate=rawLeftRate,
+            rightWheelRate=rawRightRate,
             timestamp=t,
             valid=True,
         )
@@ -59,8 +71,8 @@ def test_PipelineRunsForFewIterationsWithoutErrors():
         "timestamp",
         "tilt",
         "tiltRate",
-        "wheelPosition",
-        "wheelVelocity",
+        "phi",
+        "phiDot",
         "stateValid",
         "leftCommand",
         "rightCommand",

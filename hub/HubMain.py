@@ -40,12 +40,12 @@ from pybricks.tools import StopWatch, wait
 # side cannot read YAML so the values are hard coded here. Update both files
 # at the same time when you change them.
 # ---------------------------------------------------------------------------
-LEFT_PORT = Port.A
-RIGHT_PORT = Port.B
+LEFT_PORT = Port.B
+RIGHT_PORT = Port.A
 LOOP_PERIOD_MS = 20  # 50 Hz, comfortable on the hub for a sensor only loop
 PRINT_EVERY_N = 1    # print one line out of every N iterations
 WHEEL_RADIUS_M = 0.0285
-FORWARD_SIGN = 1
+FORWARD_SIGN = -1
 LEFT_ENCODER_SIGN = 1
 RIGHT_ENCODER_SIGN = -1
 

@@ -20,7 +20,7 @@ assumptions before running motors at non trivial duty.
 ## 2. Motors
 
 - **Type.** Two SPIKE Prime medium or large angular motors.
-- **Ports.** Defaults are A for the left wheel and B for the right wheel. Override in
+- **Ports.** Defaults are B for the left wheel and A for the right wheel. Override in
   `configs/Default.yaml`.
 - **API.** `pybricks.pupdevices.Motor` exposing at least:
   - `Motor(port).angle()` returns the encoder position in degrees.

@@ -36,7 +36,7 @@ class MockMotor(MotorInterface):
     represent a real LEGO motor.
     """
 
-    def __init__(self, maxRadPerSec: float = 10.0, tau: float = 0.05) -> None:
+    def __init__(self, maxRadPerSec: float = 20.0, tau: float = 0.05) -> None:
         self._state = _MotorState()
         self._maxRadPerSec = maxRadPerSec
         self._tau = max(tau, 1e-3)

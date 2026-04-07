@@ -11,15 +11,25 @@ Mathematical objective
 ----------------------
 
 Stabilize the upright equilibrium of a planar two wheel inverted pendulum
-with state vector
+with implemented state vector
 
-    x = [theta, thetaDot, p, pDot]^T
+    x = [theta, thetaDot, phi, phiDot]^T
 
 where ``theta`` is the body tilt angle, ``thetaDot`` is the body tilt rate,
-``p`` is the forward position of the wheel base along the floor, and
-``pDot`` is the forward velocity of the wheel base. The control input ``u``
-is a wheel velocity command (or, equivalently, a wheel torque command if you
-set ``ControlOutput.mode`` to ``ControlMode.Torque``).
+``phi`` is the mean wheel rotation angle (the average of the two sign
+corrected wheel encoder angles, in radians), and ``phiDot`` is the mean
+wheel rotation rate in radians per second. The control input ``u`` is a
+wheel velocity command (or, equivalently, a wheel torque command if you set
+``ControlOutput.mode`` to ``ControlMode.Torque``).
+
+The translational pair ``p`` (linear distance, in meters) and ``pDot``
+(linear velocity, in meters per second) is not part of the implemented
+state on purpose. It can be derived as ``p = r * phi`` and
+``pDot = r * phiDot`` using the chassis wheel radius via
+:meth:`BalanceState.LinearPosition` and :meth:`BalanceState.LinearVelocity`.
+Keeping ``phi`` and ``phiDot`` as the implemented state lets the estimator
+stay close to the raw encoder measurements and avoids any silent dependence
+on a wheel radius calibration that may not yet be finalized.
 
 A candidate Lyapunov function is
 
@@ -40,9 +50,9 @@ Expected measurements
 ---------------------
 
 A :class:`LegoBalance.BalanceState` produced by
-:class:`LegoBalance.StateEstimator`. All four entries (tilt, tiltRate,
-wheelPosition, wheelVelocity) must be valid SI quantities. The controller
-will refuse to act on a state with ``valid == False``.
+:class:`LegoBalance.StateEstimator`. All four entries (``tilt``, ``tiltRate``,
+``phi``, ``phiDot``) must be valid SI quantities. The controller will refuse
+to act on a state with ``valid == False``.
 
 Output
 ------
@@ -55,9 +65,9 @@ extension and are not part of the balancing objective.
 Stabilization objective
 -----------------------
 
-Drive ``theta`` and ``thetaDot`` to zero. Optionally drive ``p`` and
-``pDot`` to zero as well, with weaker priority. The relative weighting of
-tilt versus wheel position is encoded in the choice of ``Q`` (and therefore
+Drive ``theta`` and ``thetaDot`` to zero. Optionally drive ``phi`` and
+``phiDot`` to zero as well, with weaker priority. The relative weighting of
+tilt versus wheel rotation is encoded in the choice of ``Q`` (and therefore
 ``P``) when the controller is finally implemented.
 """
 

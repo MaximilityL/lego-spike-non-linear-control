@@ -12,8 +12,8 @@ def MakeSafeState() -> BalanceState:
     return BalanceState(
         tilt=0.05,
         tiltRate=0.1,
-        wheelPosition=0.0,
-        wheelVelocity=0.0,
+        phi=0.0,
+        phiDot=0.0,
         timestamp=0.0,
         valid=True,
     )

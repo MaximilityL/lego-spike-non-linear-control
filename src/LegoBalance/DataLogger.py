@@ -30,13 +30,20 @@ class LogRecord:
     extras: dict[str, Any] = field(default_factory=dict)
 
     def AsRow(self) -> dict[str, Any]:
-        """Flatten the record into a CSV friendly dict."""
+        """Flatten the record into a CSV friendly dict.
+
+        The columns mirror the implemented state convention used by the
+        rest of the project: ``[tilt, tiltRate, phi, phiDot]`` (i.e.
+        ``[theta, thetaDot, phi, phiDot]``). Linear translation ``p`` and
+        ``pDot`` are not logged here on purpose; they are a derived view
+        and can be computed from ``phi`` plus the wheel radius if needed.
+        """
         row: dict[str, Any] = {
             "timestamp": self.timestamp,
             "tilt": self.state.tilt,
             "tiltRate": self.state.tiltRate,
-            "wheelPosition": self.state.wheelPosition,
-            "wheelVelocity": self.state.wheelVelocity,
+            "phi": self.state.phi,
+            "phiDot": self.state.phiDot,
             "stateValid": self.state.valid,
         }
         if self.controlOutput is not None:
@@ -101,8 +108,8 @@ class DataLogger:
             "timestamp",
             "tilt",
             "tiltRate",
-            "wheelPosition",
-            "wheelVelocity",
+            "phi",
+            "phiDot",
             "stateValid",
             "leftCommand",
             "rightCommand",

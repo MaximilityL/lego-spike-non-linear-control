@@ -40,7 +40,7 @@ def test_PlaceholderBodyReturnsZeros():
     """
     config = LoadConfig(applyLocalOverride=False)
     controller = LyapunovController(config)
-    state = BalanceState(tilt=0.1, tiltRate=0.5, wheelVelocity=1.0, valid=True)
+    state = BalanceState(tilt=0.1, tiltRate=0.5, phi=0.2, phiDot=1.0, valid=True)
     output = controller.Compute(state)
     assert output.leftCommand == 0.0
     assert output.rightCommand == 0.0

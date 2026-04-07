@@ -19,14 +19,18 @@ def test_DefaultConfigLoadsAndValidates():
     config = LoadConfig(applyLocalOverride=False)
     assert isinstance(config, RobotConfig)
     assert config.chassis.wheelRadius == pytest.approx(0.0285)
-    assert config.motors.leftPort == "A"
-    assert config.motors.rightPort == "B"
-    assert config.motors.forwardSign == 1
+    assert config.motors.leftPort == "B"
+    assert config.motors.rightPort == "A"
+    assert config.motors.forwardSign == -1
     assert config.motors.leftEncoderSign == 1
     assert config.motors.rightEncoderSign == -1
+    assert config.motors.maxAngularRate == pytest.approx(17.4532925199)
     assert config.imu.zeroOffset == pytest.approx(-1.0471975512)
     assert 0.0 < config.estimator.alpha < 1.0
     assert config.control.maxTilt > 0
+    assert config.control.maxWheelRate == pytest.approx(17.4532925199)
+    assert config.drive.testSpeed == pytest.approx(17.4532925199)
+    assert config.drive.maxTiltForMotion == pytest.approx(0.872664626)
 
 
 def test_DefaultPathExists():

@@ -25,12 +25,12 @@ chassis:
 
 # Motor and encoder limits.
 motors:
-  leftPort: "A"               # SPIKE port labels are letters A through F
-  rightPort: "B"
-  maxAngularRate: 10.0        # rad/s soft cap on commanded wheel rate
+  leftPort: "B"               # SPIKE port labels are letters A through F
+  rightPort: "A"
+  maxAngularRate: 17.4532925199  # rad/s soft cap; 1000 deg/s validated on hub
   maxDuty: 80                 # 0..100 percent duty cap as a safety ceiling
   encoderCountsPerRev: 360    # SPIKE motors report degrees, see Units module
-  forwardSign: 1              # +1 means positive mean wheel rotation is forward
+  forwardSign: -1             # hardware verified final flip: positive phi is forward
   leftEncoderSign: 1          # flip to -1 if left encoder counts backward when rolling forward
   rightEncoderSign: -1        # right motor is mirrored on the current build
 
@@ -50,10 +50,18 @@ estimator:
 # Control loop limits and safety.
 control:
   loopRate: 100.0             # Hz, target outer control loop rate
-  maxTilt: 0.6                # rad, |tilt| above which the safety monitor trips
+  maxTilt: 1.0                # rad, |tilt| above which the safety monitor trips
   maxTiltRate: 10.0           # rad/s
-  maxWheelRate: 10.0          # rad/s commanded
+  maxWheelRate: 17.4532925199  # rad/s commanded; 1000 deg/s validated on hub
   watchdogTimeout: 0.2        # s without an update before the safety monitor trips
+
+# Pre balancing drive command path. Used by DriveCommandController and the
+# forward/backward/stop smoke flows. These mirror the values validated on
+# the real hub. This is for bench tests with the wheels lifted, not for
+# autonomous motion.
+drive:
+  testSpeed: 17.4532925199    # rad/s, 1000 deg/s forward/backward smoke command
+  maxTiltForMotion: 0.872664626  # rad, 50 deg drive gate validated on hub
 
 # Logging.
 logging:
