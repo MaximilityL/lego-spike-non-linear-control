@@ -25,7 +25,7 @@ chassis:
 
 # Motor and encoder limits.
 motors:
-  leftPort: "F"               # SPIKE port labels are letters A through F
+  leftPort: "A"               # SPIKE port labels are letters A through F
   rightPort: "B"
   maxAngularRate: 10.0        # rad/s soft cap on commanded wheel rate
   maxDuty: 80                 # 0..100 percent duty cap as a safety ceiling
