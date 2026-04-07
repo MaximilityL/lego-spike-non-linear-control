@@ -72,8 +72,8 @@ def Main():
 
     print("HubMain ready. Press center button to stop.")
     print(
-        "DATA_HEADER,t_s,theta_rad,theta_dot_rad_per_sec,p_m,p_dot_m_per_sec,"
-        "left_angle_rad,left_rate_rad_per_sec,right_angle_rad,right_rate_rad_per_sec"
+        "DATA_HEADER,t_s,theta_deg,theta_dot_deg_per_sec,p_m,p_dot_m_per_sec,"
+        "left_angle_deg,left_rate_deg_per_sec,right_angle_deg,right_rate_deg_per_sec"
     )
 
     # ----- Main loop -----
@@ -107,21 +107,21 @@ def Main():
             signedRightSpeedDps = RIGHT_ENCODER_SIGN * rightSpeedDps
             meanWheelAngleDeg = (signedLeftAngleDeg + signedRightAngleDeg) / 2.0
             meanWheelSpeedDps = (signedLeftSpeedDps + signedRightSpeedDps) / 2.0
-            thetaRad = tiltDeg * DEG_TO_RAD
-            thetaDotRadPerSec = tiltRateDegPerSec * DEG_TO_RAD
+            thetaDeg = tiltDeg
+            thetaDotDegPerSec = tiltRateDegPerSec
             pM = FORWARD_SIGN * meanWheelAngleDeg * DEG_TO_RAD * WHEEL_RADIUS_M
             pDotMPerSec = FORWARD_SIGN * meanWheelSpeedDps * DEG_TO_RAD * WHEEL_RADIUS_M
             print(
                 "DATA,{:.3f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f}".format(
                     sw.time() / 1000.0,
-                    thetaRad,
-                    thetaDotRadPerSec,
+                    thetaDeg,
+                    thetaDotDegPerSec,
                     pM,
                     pDotMPerSec,
-                    signedLeftAngleDeg * DEG_TO_RAD,
-                    signedLeftSpeedDps * DEG_TO_RAD,
-                    signedRightAngleDeg * DEG_TO_RAD,
-                    signedRightSpeedDps * DEG_TO_RAD,
+                    signedLeftAngleDeg,
+                    signedLeftSpeedDps,
+                    signedRightAngleDeg,
+                    signedRightSpeedDps,
                 )
             )
 
