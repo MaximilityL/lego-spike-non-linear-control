@@ -28,7 +28,7 @@ from LegoBalance.ControlInterfaces import Measurement
 from LegoBalance.DataLogger import DataLogger
 from LegoBalance.LyapunovController import LyapunovController
 from LegoBalance.MockAdapters import MockHub
-from LegoBalance.RobotConfig import LoadConfig
+from LegoBalance.RobotConfig import LoadConfig, RobotConfig
 from LegoBalance.SafetyMonitor import SafetyMonitor
 from LegoBalance.StateEstimator import StateEstimator
 
@@ -37,20 +37,20 @@ SIM_DT_SEC = 0.01
 INITIAL_TILT_RAD = 0.05  # 0.05 rad ~ 2.9 deg, well inside the safety envelope
 
 
-def BuildMeasurement(hub: MockHub, currentTimeSec: float) -> Measurement:
+def BuildMeasurement(hub: MockHub, config: RobotConfig, currentTimeSec: float) -> Measurement:
     """Pull a Measurement bundle out of the toy hub.
 
-    The mock hub directly exposes the body tilt from its IMU and the
-    encoders from its motors. A real adapter would do unit conversions
-    here.
+    The mock hub stores physical tilt and wheel motion. Convert those into
+    the raw sensor convention expected by StateEstimator, which then applies
+    the same config signs and offsets used for hardware.
     """
     return Measurement(
-        tiltAngle=hub.Imu.TiltAngleRadians(),
-        tiltRate=hub.Imu.TiltRateRadiansPerSec(),
-        leftWheelAngle=hub.LeftMotor.Angle(),
-        rightWheelAngle=hub.RightMotor.Angle(),
-        leftWheelRate=hub.LeftMotor.Velocity(),
-        rightWheelRate=hub.RightMotor.Velocity(),
+        tiltAngle=config.imu.tiltSign * (hub.Imu.TiltAngleRadians() - config.imu.zeroOffset),
+        tiltRate=config.imu.tiltSign * (hub.Imu.TiltRateRadiansPerSec() + config.imu.gyroBias),
+        leftWheelAngle=config.motors.leftEncoderSign * hub.LeftMotor.Angle(),
+        rightWheelAngle=config.motors.rightEncoderSign * hub.RightMotor.Angle(),
+        leftWheelRate=config.motors.leftEncoderSign * hub.LeftMotor.Velocity(),
+        rightWheelRate=config.motors.rightEncoderSign * hub.RightMotor.Velocity(),
         timestamp=currentTimeSec,
         valid=True,
     )
@@ -78,7 +78,7 @@ def Main() -> int:
     steps = int(round(SIM_DURATION_SEC / SIM_DT_SEC))
     timeSec = 0.0
     for _ in range(steps):
-        measurement = BuildMeasurement(hub, timeSec)
+        measurement = BuildMeasurement(hub, config, timeSec)
         state = estimator.Update(measurement)
         rawCommand = controller.Compute(state)
         safeCommand = safety.Check(state, rawCommand, currentTime=timeSec)
@@ -99,7 +99,7 @@ def Main() -> int:
     print(f"records collected : {len(logger)}")
     print(
         f"final state       : tilt={finalState.tilt:+.3f} rad, tiltRate={finalState.tiltRate:+.3f} rad/s, "
-        f"wheelPos={finalState.wheelPosition:+.3f} rad, wheelVel={finalState.wheelVelocity:+.3f} rad/s"
+        f"p={finalState.wheelPosition:+.3f} m, pDot={finalState.wheelVelocity:+.3f} m/s"
     )
     print(f"safety armed      : {safety.status.armed}")
     print(f"safety tripped    : {safety.status.tripped}")

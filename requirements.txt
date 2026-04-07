@@ -5,3 +5,4 @@
 #     pip install -e .[hub]
 
 pyyaml>=6.0
+matplotlib>=3.0

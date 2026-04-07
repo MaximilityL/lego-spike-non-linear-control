@@ -31,12 +31,13 @@ def test_PipelineRunsForFewIterationsWithoutErrors():
     t = 0.0
     for _ in range(20):
         measurement = Measurement(
-            tiltAngle=hub.Imu.TiltAngleRadians(),
-            tiltRate=hub.Imu.TiltRateRadiansPerSec(),
-            leftWheelAngle=hub.LeftMotor.Angle(),
-            rightWheelAngle=hub.RightMotor.Angle(),
-            leftWheelRate=hub.LeftMotor.Velocity(),
-            rightWheelRate=hub.RightMotor.Velocity(),
+            tiltAngle=config.imu.tiltSign * (hub.Imu.TiltAngleRadians() - config.imu.zeroOffset),
+            tiltRate=config.imu.tiltSign
+            * (hub.Imu.TiltRateRadiansPerSec() + config.imu.gyroBias),
+            leftWheelAngle=config.motors.leftEncoderSign * hub.LeftMotor.Angle(),
+            rightWheelAngle=config.motors.rightEncoderSign * hub.RightMotor.Angle(),
+            leftWheelRate=config.motors.leftEncoderSign * hub.LeftMotor.Velocity(),
+            rightWheelRate=config.motors.rightEncoderSign * hub.RightMotor.Velocity(),
             timestamp=t,
             valid=True,
         )

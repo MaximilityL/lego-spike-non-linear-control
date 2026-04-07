@@ -47,7 +47,8 @@ The single biggest source of bugs in a balancing robot is a wrong sign. Be expli
   the config let you fix the mapping without editing code.
 - **Wheel encoder direction.** If the motor is mounted facing outward on one side and
   inward on the other, one of the two will report negative angles for forward motion.
-  Set this in code in the motor adapter, not in the controller.
+  Set `motors.leftEncoderSign`, `motors.rightEncoderSign`, and `motors.forwardSign`
+  in the config or hub-side constants, not in the controller.
 
 ## 4. Power And Safety
 

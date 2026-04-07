@@ -18,9 +18,13 @@ from LegoBalance.RobotConfig import (
 def test_DefaultConfigLoadsAndValidates():
     config = LoadConfig(applyLocalOverride=False)
     assert isinstance(config, RobotConfig)
-    assert config.chassis.wheelRadius > 0
+    assert config.chassis.wheelRadius == pytest.approx(0.0285)
     assert config.motors.leftPort == "A"
     assert config.motors.rightPort == "B"
+    assert config.motors.forwardSign == 1
+    assert config.motors.leftEncoderSign == 1
+    assert config.motors.rightEncoderSign == -1
+    assert config.imu.zeroOffset == pytest.approx(-1.0471975512)
     assert 0.0 < config.estimator.alpha < 1.0
     assert config.control.maxTilt > 0
 
@@ -67,6 +71,14 @@ def test_LoadConfigRejectsBadAlpha(tmp_path: Path):
 
 def test_LoadConfigRejectsNegativeWheelRadius(tmp_path: Path):
     bad = {"chassis": {"wheelRadius": -0.01}}
+    badPath = tmp_path / "bad.yaml"
+    badPath.write_text(yaml.safe_dump(bad))
+    with pytest.raises(ValueError):
+        LoadConfig(path=badPath)
+
+
+def test_LoadConfigRejectsBadEncoderSign(tmp_path: Path):
+    bad = {"motors": {"rightEncoderSign": 0}}
     badPath = tmp_path / "bad.yaml"
     badPath.write_text(yaml.safe_dump(bad))
     with pytest.raises(ValueError):

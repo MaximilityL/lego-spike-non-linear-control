@@ -7,7 +7,7 @@ have flashed Pybricks. It does the following:
 2. Initializes the two drive motors on ports A and B.
 3. Reads the IMU pitch and the angular velocity.
 4. Reads the encoder angles.
-5. Prints one line per loop iteration to the Pybricks Code terminal.
+5. Streams plot friendly telemetry rows to the Pybricks Code terminal.
 6. Stops cleanly when the center button is pressed.
 
 This file is intentionally self contained. Pybricks programs cannot import
@@ -22,6 +22,10 @@ How to run:
 
 Safety: this program does not command the motors. It only reads sensors. It
 is safe to run with the wheels on the ground.
+
+For live plots from a laptop, run:
+
+    python scripts/PlotHubMainLive.py
 """
 
 # All imports must come from the pybricks namespace. Any other import will
@@ -39,7 +43,17 @@ from pybricks.tools import StopWatch, wait
 LEFT_PORT = Port.A
 RIGHT_PORT = Port.B
 LOOP_PERIOD_MS = 20  # 50 Hz, comfortable on the hub for a sensor only loop
-PRINT_EVERY_N = 5    # print one line out of every N iterations
+PRINT_EVERY_N = 1    # print one line out of every N iterations
+WHEEL_RADIUS_M = 0.0285
+FORWARD_SIGN = 1
+LEFT_ENCODER_SIGN = 1
+RIGHT_ENCODER_SIGN = -1
+
+# IMU configuration from Default.yaml
+TILT_SIGN = -1
+ZERO_OFFSET_DEG = -60.0
+GYRO_BIAS_DEG_PER_SEC = 0.0
+DEG_TO_RAD = 0.017453292519943295
 
 
 def Main():
@@ -57,6 +71,10 @@ def Main():
     iteration = 0
 
     print("HubMain ready. Press center button to stop.")
+    print(
+        "DATA_HEADER,t_s,theta_rad,theta_dot_rad_per_sec,p_m,p_dot_m_per_sec,"
+        "left_angle_rad,left_rate_rad_per_sec,right_angle_rad,right_rate_rad_per_sec"
+    )
 
     # ----- Main loop -----
     while True:
@@ -65,8 +83,12 @@ def Main():
             break
 
         # Read IMU. Pybricks returns degrees and deg/s.
-        pitchDeg, rollDeg = hub.imu.tilt()
-        gx, gy, gz = hub.imu.angular_velocity()
+        pitchDeg, _ = hub.imu.tilt()
+        _, gy, _ = hub.imu.angular_velocity()
+
+        # Apply IMU configuration corrections
+        tiltDeg = TILT_SIGN * pitchDeg + ZERO_OFFSET_DEG
+        tiltRateDegPerSec = TILT_SIGN * gy - GYRO_BIAS_DEG_PER_SEC
 
         # Read encoders. Pybricks returns degrees and deg/s.
         leftAngleDeg = leftMotor.angle()
@@ -75,18 +97,31 @@ def Main():
         rightSpeedDps = rightMotor.speed()
 
         if iteration % PRINT_EVERY_N == 0:
-            # Print every Nth iteration so the terminal is not flooded.
+            # Print every Nth iteration so the terminal is not flooded. Lines
+            # beginning with DATA are consumed by scripts/PlotHubMainLive.py.
+            # If one motor is mirrored, flip its encoder sign here so p is
+            # positive when the wheel base rolls forward along the floor.
+            signedLeftAngleDeg = LEFT_ENCODER_SIGN * leftAngleDeg
+            signedRightAngleDeg = RIGHT_ENCODER_SIGN * rightAngleDeg
+            signedLeftSpeedDps = LEFT_ENCODER_SIGN * leftSpeedDps
+            signedRightSpeedDps = RIGHT_ENCODER_SIGN * rightSpeedDps
+            meanWheelAngleDeg = (signedLeftAngleDeg + signedRightAngleDeg) / 2.0
+            meanWheelSpeedDps = (signedLeftSpeedDps + signedRightSpeedDps) / 2.0
+            thetaRad = tiltDeg * DEG_TO_RAD
+            thetaDotRadPerSec = tiltRateDegPerSec * DEG_TO_RAD
+            pM = FORWARD_SIGN * meanWheelAngleDeg * DEG_TO_RAD * WHEEL_RADIUS_M
+            pDotMPerSec = FORWARD_SIGN * meanWheelSpeedDps * DEG_TO_RAD * WHEEL_RADIUS_M
             print(
-                "t={:.2f}s pitch={:+.1f} roll={:+.1f} gy={:+.1f} "
-                "L={:+d}/{:+d} R={:+d}/{:+d}".format(
+                "DATA,{:.3f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f}".format(
                     sw.time() / 1000.0,
-                    pitchDeg,
-                    rollDeg,
-                    gy,
-                    int(leftAngleDeg),
-                    int(leftSpeedDps),
-                    int(rightAngleDeg),
-                    int(rightSpeedDps),
+                    thetaRad,
+                    thetaDotRadPerSec,
+                    pM,
+                    pDotMPerSec,
+                    signedLeftAngleDeg * DEG_TO_RAD,
+                    signedLeftSpeedDps * DEG_TO_RAD,
+                    signedRightAngleDeg * DEG_TO_RAD,
+                    signedRightSpeedDps * DEG_TO_RAD,
                 )
             )
 

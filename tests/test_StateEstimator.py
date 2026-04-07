@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from LegoBalance.BalanceState import BalanceState
 from LegoBalance.ControlInterfaces import Measurement
 from LegoBalance.RobotConfig import LoadConfig
@@ -36,18 +38,18 @@ def test_UpdateReturnsBalanceStateWithRightShape():
     assert isinstance(state, BalanceState)
     assert len(state.AsList()) == 4
     assert state.valid is True
-    assert state.tilt == 0.1
-    assert state.tiltRate == 0.2
+    assert state.tilt == pytest.approx(config.imu.tiltSign * 0.1 + config.imu.zeroOffset)
+    assert state.tiltRate == pytest.approx(config.imu.tiltSign * 0.2 - config.imu.gyroBias)
 
 
-def test_UpdateAveragesWheels():
+def test_UpdateUsesConfiguredSignsAndWheelRadius():
     config = LoadConfig(applyLocalOverride=False)
     estimator = StateEstimator(config)
     state = estimator.Update(
         MakeMeasurement(leftAngle=2.0, rightAngle=4.0, leftRate=1.0, rightRate=3.0)
     )
-    assert state.wheelPosition == 3.0
-    assert state.wheelVelocity == 2.0
+    assert state.wheelPosition == pytest.approx(-1.0 * config.chassis.wheelRadius)
+    assert state.wheelVelocity == pytest.approx(-1.0 * config.chassis.wheelRadius)
 
 
 def test_ResetClearsHistory():
@@ -56,4 +58,4 @@ def test_ResetClearsHistory():
     estimator.Update(MakeMeasurement(tilt=0.5))
     estimator.Reset()
     state = estimator.Update(MakeMeasurement(tilt=0.0))
-    assert state.tilt == 0.0
+    assert state.tilt == pytest.approx(config.imu.zeroOffset)

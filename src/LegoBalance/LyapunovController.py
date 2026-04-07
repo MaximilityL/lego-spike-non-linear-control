@@ -13,13 +13,13 @@ Mathematical objective
 Stabilize the upright equilibrium of a planar two wheel inverted pendulum
 with state vector
 
-    x = [theta, thetaDot, phi, phiDot]^T
+    x = [theta, thetaDot, p, pDot]^T
 
 where ``theta`` is the body tilt angle, ``thetaDot`` is the body tilt rate,
-``phi`` is the (mean) wheel rotation angle, and ``phiDot`` is the (mean)
-wheel rotation rate. The control input ``u`` is a wheel velocity command (or,
-equivalently, a wheel torque command if you set ``ControlOutput.mode`` to
-``ControlMode.Torque``).
+``p`` is the forward position of the wheel base along the floor, and
+``pDot`` is the forward velocity of the wheel base. The control input ``u``
+is a wheel velocity command (or, equivalently, a wheel torque command if you
+set ``ControlOutput.mode`` to ``ControlMode.Torque``).
 
 A candidate Lyapunov function is
 
@@ -55,8 +55,8 @@ extension and are not part of the balancing objective.
 Stabilization objective
 -----------------------
 
-Drive ``theta`` and ``thetaDot`` to zero. Optionally drive ``phi`` and
-``phiDot`` to zero as well, with weaker priority. The relative weighting of
+Drive ``theta`` and ``thetaDot`` to zero. Optionally drive ``p`` and
+``pDot`` to zero as well, with weaker priority. The relative weighting of
 tilt versus wheel position is encoded in the choice of ``Q`` (and therefore
 ``P``) when the controller is finally implemented.
 """

@@ -12,15 +12,15 @@ to rotate about the wheel axis. The wheels are driven by motors with finite torq
 State vector
 
 ```
-x = [theta, thetaDot, phi, phiDot]^T
+x = [theta, thetaDot, p, pDot]^T
 ```
 
 where
 
 - `theta` is the body tilt angle around the wheel axis, with theta = 0 being upright.
 - `thetaDot` is the body tilt rate.
-- `phi` is the (mean) wheel rotation angle.
-- `phiDot` is the (mean) wheel rotation rate.
+- `p` is the forward position of the wheel base along the floor.
+- `pDot` is the forward velocity of the wheel base along the floor.
 
 Control input
 
@@ -42,7 +42,7 @@ xDot = A x + B u
 
 with
 
-- A nontrivial coupling between `theta` and `phi` because the body acts as a pendulum
+- A nontrivial coupling between `theta` and `p` because the body acts as a pendulum
   reaction load on the wheels.
 - A `g/h` term in A coming from gravity, where `g` is gravitational acceleration and
   `h` is the height of the center of mass.
@@ -60,7 +60,7 @@ V(x) = (1/2) x^T P x
 ```
 
 with `P` symmetric positive definite, optionally augmented with an integral term in
-`phi` if you want zero steady state position drift. The control law is then chosen so
+`p` if you want zero steady state position drift. The control law is then chosen so
 that
 
 ```
@@ -88,7 +88,8 @@ desktop, against `examples/ClosedLoopSimulation.py`, before any hub deployment.
 ## 4. What Plugs In Where
 
 - **State estimator.** `StateEstimator.Update(measurement, dt)` returns a
-  `BalanceState`. Today it is a stub that just forwards measurements. Replace its body
+  `BalanceState`. Today it applies the configured IMU correction plus the wheel encoder
+  signs/radius to produce `theta`, `thetaDot`, `p`, and `pDot`. Replace the IMU body
   with a complementary filter (or a Kalman filter if you prefer).
 - **Controller.** `LyapunovController.Compute(state)` returns a `ControlOutput`. Today
   it returns zero. Replace its body with the Lyapunov based control law from section 3.

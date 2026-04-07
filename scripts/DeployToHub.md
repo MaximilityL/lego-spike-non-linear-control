@@ -41,6 +41,16 @@ If discovery fails, give it the hub name explicitly:
 pybricksdev run ble --name "Pybricks Hub" hub/HubMain.py
 ```
 
+To run `HubMain.py` and show the live telemetry plots on your laptop:
+
+```bash
+python scripts/PlotHubMainLive.py
+```
+
+This opens one live state-vector figure for
+`x = [theta, theta_dot, p, p_dot]^T`. Add `--show-motors` if you also want
+raw left/right motor encoder plots as a diagnostic view.
+
 You can rename your hub from the gear icon in `code.pybricks.com`.
 
 ## 2. Common Errors

@@ -113,6 +113,7 @@ lego-spike-invrted-pendulum/
 ├── scripts/
 │   ├── BootstrapEnv.sh        One shot setup script for the desktop venv
 │   ├── DetectHub.py           USB / Bluetooth presence sniff
+│   ├── PlotHubMainLive.py     Live plots for telemetry streamed by HubMain
 │   ├── RunDiagnostics.py      Run ConnectionDiagnostics from the CLI
 │   └── DeployToHub.md         Notes on flashing and running on the hub
 ├── examples/
@@ -208,6 +209,25 @@ your laptop without the browser:
 pybricksdev run ble hub/HubMain.py
 ```
 
+To run `HubMain.py` and show the live state vector
+`x = [theta, theta_dot, p, p_dot]^T`:
+
+```bash
+python scripts/PlotHubMainLive.py
+```
+
+To add raw left/right motor encoder plots as a slower diagnostic view:
+
+```bash
+python scripts/PlotHubMainLive.py --show-motors
+```
+
+If discovery fails, pass the hub name through to `pybricksdev`:
+
+```bash
+python scripts/PlotHubMainLive.py --name "Pybricks Hub"
+```
+
 See [scripts/DeployToHub.md](scripts/DeployToHub.md) for the full set of options and
 common error fixes.
 
@@ -228,6 +248,7 @@ common error fixes.
 | Run a desktop only motor smoke test (mock)     | `python examples/MotorSmokeTest.py`         |
 | Read mock sensors                              | `python examples/ReadSensors.py`            |
 | Detect a connected SPIKE hub                   | `python scripts/DetectHub.py`               |
+| Run HubMain with live plots                    | `python scripts/PlotHubMainLive.py`         |
 | Run desktop side connection diagnostics        | `python scripts/RunDiagnostics.py`          |
 | Run a Pybricks program on the hub via CLI      | `pybricksdev run ble hub/HubMain.py`        |
 | Test Bluetooth terminal connection on the hub  | `pybricksdev run ble hub/HubBluetoothTest.py` |

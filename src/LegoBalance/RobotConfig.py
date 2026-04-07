@@ -20,7 +20,7 @@ LOCAL_CONFIG_PATH = REPO_ROOT / "configs" / "local.yaml"
 
 @dataclass
 class ChassisConfig:
-    wheelRadius: float = 0.028
+    wheelRadius: float = 0.0285
     wheelBase: float = 0.12
     bodyMass: float = 0.5
     bodyHeightCoM: float = 0.08
@@ -34,13 +34,16 @@ class MotorsConfig:
     maxAngularRate: float = 10.0
     maxDuty: float = 80.0
     encoderCountsPerRev: int = 360
+    forwardSign: int = 1
+    leftEncoderSign: int = 1
+    rightEncoderSign: int = -1
 
 
 @dataclass
 class ImuConfig:
     tiltAxis: str = "pitch"
-    tiltSign: int = 1
-    zeroOffset: float = 0.0
+    tiltSign: int = -1
+    zeroOffset: float = -1.0471975511965976
     gyroBias: float = 0.0
 
 
@@ -88,6 +91,12 @@ class RobotConfig:
             raise ValueError("chassis.wheelBase must be positive")
         if self.motors.maxAngularRate <= 0:
             raise ValueError("motors.maxAngularRate must be positive")
+        if self.motors.forwardSign not in (-1, 1):
+            raise ValueError("motors.forwardSign must be +1 or -1")
+        if self.motors.leftEncoderSign not in (-1, 1):
+            raise ValueError("motors.leftEncoderSign must be +1 or -1")
+        if self.motors.rightEncoderSign not in (-1, 1):
+            raise ValueError("motors.rightEncoderSign must be +1 or -1")
         if not (0.0 < self.estimator.alpha < 1.0):
             raise ValueError("estimator.alpha must lie strictly between 0 and 1")
         if self.control.loopRate <= 0:

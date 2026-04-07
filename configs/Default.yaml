@@ -17,7 +17,7 @@ robot:
 
 # Geometry of the chassis. Update these for your specific build.
 chassis:
-  wheelRadius: 0.028          # 28 mm wheel radius is typical for SPIKE wheels
+  wheelRadius: 0.0285         # measured wheel radius
   wheelBase: 0.12             # distance between left and right wheel contact points
   bodyMass: 0.5               # rough estimate, will be measured later
   bodyHeightCoM: 0.08         # height of the center of mass above the wheel axle
@@ -30,12 +30,15 @@ motors:
   maxAngularRate: 10.0        # rad/s soft cap on commanded wheel rate
   maxDuty: 80                 # 0..100 percent duty cap as a safety ceiling
   encoderCountsPerRev: 360    # SPIKE motors report degrees, see Units module
+  forwardSign: 1              # +1 means positive mean wheel rotation is forward
+  leftEncoderSign: 1          # flip to -1 if left encoder counts backward when rolling forward
+  rightEncoderSign: -1        # right motor is mirrored on the current build
 
 # IMU expectations. Verify these against your physical mounting.
 imu:
   tiltAxis: "pitch"           # which IMU axis tracks body tilt
-  tiltSign: 1                 # +1 or -1 to flip sign convention if needed
-  zeroOffset: 0.0             # radians, calibrated zero
+  tiltSign: -1                 # +1 or -1 to flip sign convention if needed
+  zeroOffset: -1.0471975512   # radians, calibrated zero (-60 deg)
   gyroBias: 0.0               # rad/s, calibrated bias
 
 # Estimator parameters.

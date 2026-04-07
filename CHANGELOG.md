@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-04-07
+
+### Changed
+- Updated the state estimator to apply `imu.tiltSign`, `imu.zeroOffset`, and `imu.gyroBias` so tilt and tilt rate are corrected by configuration.
+- Wheel encoder measurements now use `motors.leftEncoderSign` and `motors.rightEncoderSign`, average the signed motor readings, and convert from wheel angle to linear forward position/velocity using `chassis.wheelRadius` and `motors.forwardSign`.
+- Added configuration validation for `motors.forwardSign`, `motors.leftEncoderSign`, and `motors.rightEncoderSign` values.
+- Clarified the balance state and controller documentation to use the `[theta, thetaDot, p, pDot]` state representation.
+
 ## [1.0.0] - 2026-04-07
 
 ### Added

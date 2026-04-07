@@ -19,9 +19,10 @@ class BalanceState:
             the body is leaning forward.
         tiltRate: Body tilt rate in radians per second. Positive when the
             tilt is increasing.
-        wheelPosition: Mean wheel rotation angle in radians, taken across the
-            two drive motors. Positive when rolling forward.
-        wheelVelocity: Mean wheel rotation rate in radians per second.
+        wheelPosition: Forward wheel base position along the floor in meters.
+            Positive when rolling forward.
+        wheelVelocity: Forward wheel base velocity along the floor in meters
+            per second.
         timestamp: Time of estimation in seconds. Source is up to the caller
             (monotonic clock on the desktop, ``StopWatch`` on the hub).
         valid: ``False`` until the estimator has produced its first
@@ -40,7 +41,8 @@ class BalanceState:
         """Return ``[tilt, tiltRate, wheelPosition, wheelVelocity]``.
 
         Convenience for tests and for any code that wants to treat the state
-        as a flat numerical vector.
+        as a flat numerical vector. This is the ``[theta, thetaDot, p, pDot]``
+        state used by the balancing controller.
         """
         return [self.tilt, self.tiltRate, self.wheelPosition, self.wheelVelocity]
 
