@@ -1,0 +1,59 @@
+# Default robot configuration for the LEGO SPIKE inverted pendulum starter.
+#
+# This file is loaded by LegoBalance.RobotConfig.LoadConfig.
+# Override values by copying this file to configs/local.yaml and editing the copy,
+# or by passing a path to LoadConfig directly.
+#
+# Units:
+#   length        meters
+#   mass          kilograms
+#   angle         radians (unless explicitly noted)
+#   angular rate  radians per second
+#   time          seconds
+
+robot:
+  name: "LegoBalance Mk0"
+  description: "Two wheel self balancing inverted pendulum on LEGO SPIKE Prime."
+
+# Geometry of the chassis. Update these for your specific build.
+chassis:
+  wheelRadius: 0.028          # 28 mm wheel radius is typical for SPIKE wheels
+  wheelBase: 0.12             # distance between left and right wheel contact points
+  bodyMass: 0.5               # rough estimate, will be measured later
+  bodyHeightCoM: 0.08         # height of the center of mass above the wheel axle
+  bodyInertia: 0.002          # rotational inertia of the body around the wheel axle
+
+# Motor and encoder limits.
+motors:
+  leftPort: "F"               # SPIKE port labels are letters A through F
+  rightPort: "B"
+  maxAngularRate: 10.0        # rad/s soft cap on commanded wheel rate
+  maxDuty: 80                 # 0..100 percent duty cap as a safety ceiling
+  encoderCountsPerRev: 360    # SPIKE motors report degrees, see Units module
+
+# IMU expectations. Verify these against your physical mounting.
+imu:
+  tiltAxis: "pitch"           # which IMU axis tracks body tilt
+  tiltSign: 1                 # +1 or -1 to flip sign convention if needed
+  zeroOffset: 0.0             # radians, calibrated zero
+  gyroBias: 0.0               # rad/s, calibrated bias
+
+# Estimator parameters.
+estimator:
+  filterType: "complementary"
+  alpha: 0.98                 # gyro weight in complementary filter, 0..1
+  loopRate: 100.0             # Hz, target estimator update rate
+
+# Control loop limits and safety.
+control:
+  loopRate: 100.0             # Hz, target outer control loop rate
+  maxTilt: 0.6                # rad, |tilt| above which the safety monitor trips
+  maxTiltRate: 10.0           # rad/s
+  maxWheelRate: 10.0          # rad/s commanded
+  watchdogTimeout: 0.2        # s without an update before the safety monitor trips
+
+# Logging.
+logging:
+  enabled: true
+  level: "info"               # debug, info, warn, error
+  bufferSize: 2048            # number of samples held in memory before flushing

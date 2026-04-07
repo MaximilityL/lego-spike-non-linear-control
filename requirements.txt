@@ -1,0 +1,7 @@
+# Desktop side runtime dependencies for the LegoBalance package.
+# For development extras (pytest, ruff, mypy) install with:
+#     pip install -e .[dev]
+# For hub deployment helper (pybricksdev) install with:
+#     pip install -e .[hub]
+
+pyyaml>=6.0
