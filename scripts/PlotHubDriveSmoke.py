@@ -193,10 +193,10 @@ def LegBoundaries(samples: list[DriveSample]) -> list[tuple[str, float]]:
     return boundaries
 
 
-def Plot(samples: list[DriveSample], maxTiltDeg: float) -> int:
+def Plot(samples: list[DriveSample], maxTiltDeg: float, runName: str = "HubDriveSmoke") -> int:
     if not samples:
         print(
-            "No DATA rows were collected. Nothing to plot. Confirm HubDriveSmoke "
+            "No DATA rows were collected. Nothing to plot. Confirm " + runName + " "
             "ran and printed DATA rows.",
             file=sys.stderr,
         )
@@ -219,9 +219,9 @@ def Plot(samples: list[DriveSample], maxTiltDeg: float) -> int:
     leftCmd = [s.left_cmd_deg_per_sec for s in samples]
     rightCmd = [s.right_cmd_deg_per_sec for s in samples]
 
-    fig, axes = plt.subplots(5, 1, sharex=True, figsize=(10, 9), num="HubDriveSmoke run")
+    fig, axes = plt.subplots(5, 1, sharex=True, figsize=(10, 9), num=runName + " run")
     fig.suptitle(
-        "HubDriveSmoke: estimator state and drive command\n"
+        runName + ": estimator state and drive command\n"
         "implemented state [theta, thetaDot, phi, phiDot]"
     )
 

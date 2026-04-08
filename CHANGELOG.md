@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] - 2026-04-08
+
+### Added
+- Added a package-backed hardware smoke path that exercises a hub-safe `LegoBalance`
+  runtime on the SPIKE hub instead of duplicating all estimator, drive-command, safety,
+  unit-conversion, and config logic inside a standalone hub script.
+- Added a laptop plotter for the package-backed smoke run that reuses the existing
+  drive-smoke telemetry parser while loading the plotted drive gate from the desktop
+  `LegoBalance` config.
+- Added parity tests that keep the hub-safe runtime aligned with the desktop
+  `StateEstimator`, `DriveCommandController`, `SafetyMonitor`, and hardware-validated
+  signs/constants.
+
+### Changed
+- Kept the standalone `hub/HubDriveSmoke.py` as the hardware-verified reference path,
+  while documenting the new package-backed path as the deliberate multi-file Pybricks
+  exception for testing reusable package logic on the real robot.
+- Generalized the drive-smoke plotting title so both standalone and package-backed runs
+  can share the same diagnostic plot logic without changing the telemetry contract.
+
 ## [1.0.2] - 2026-04-07
 
 ### Changed

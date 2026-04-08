@@ -51,15 +51,16 @@ A short comparison with the alternatives:
 
 This project is split into two halves on purpose.
 
-- **Hub side (`hub/`).** Tiny self contained Pybricks programs that import only from
-  `pybricks.*`. These are what you actually upload to the hub. They are intentionally
-  short and concrete because Pybricks programs cannot freely import from the rest of this
-  repository.
+- **Hub side (`hub/`, plus the package smoke entrypoint under `src/`).** Tiny Pybricks
+  programs for the real SPIKE hub. Most are self contained and import only from
+  `pybricks.*`. `src/HubPackageDriveSmoke.py` is the deliberate exception: it imports the
+  hub-safe `LegoBalance.HubDriveSmokeRuntime` package module so you can test the package
+  logic on hardware.
 - **Desktop side (`src/LegoBalance/`).** A normal Python package with type hints,
   dataclasses, tests, and abstract interfaces. This is where the controller, estimator,
-  configuration, simulation, and tests live. None of this runs on the hub directly.
-  When you are ready to deploy a controller, you port the relevant function bodies into a
-  hub side script.
+  configuration, simulation, and tests live. Most of this does not run on the hub
+  directly; hub code can only import modules kept MicroPython-safe, like
+  `HubDriveSmokeRuntime`.
 
 This split is the most important architectural decision in the repo. Read it twice. It is
 what lets you write tested, maintainable Python on your laptop while still being honest
@@ -71,7 +72,7 @@ about what the hub can and cannot do.
 lego-spike-invrted-pendulum/
 ├── README.md                  Project overview and quickstart (this file)
 ├── CHANGELOG.md               Version history
-├── VERSION                    Plain text version, currently 1.0.0
+├── VERSION                    Plain text version, currently 1.0.3
 ├── pyproject.toml             Desktop side packaging and tool config
 ├── requirements.txt           Minimal runtime dependencies for desktop side
 ├── .gitignore
@@ -85,8 +86,10 @@ lego-spike-invrted-pendulum/
 │   ├── TestStrategy.md
 │   └── PybricksNotes.md
 ├── src/
+│   ├── HubPackageDriveSmoke.py Package-backed Pybricks drive smoke entrypoint
 │   └── LegoBalance/           Desktop side Python package
 │       ├── __init__.py
+│       ├── HubDriveSmokeRuntime.py Hub-safe package runtime for hardware smoke
 │       ├── HubInterface.py
 │       ├── MotorInterface.py
 │       ├── ImuInterface.py
@@ -117,6 +120,7 @@ lego-spike-invrted-pendulum/
 │   ├── DetectHub.py           USB / Bluetooth presence sniff
 │   ├── PlotHubMainLive.py     Live plots for telemetry streamed by HubMain
 │   ├── PlotHubDriveSmoke.py   Post-run plots for HubDriveSmoke telemetry
+│   ├── PlotHubPackageDriveSmoke.py Post-run plots for the package-backed smoke
 │   ├── RunDiagnostics.py      Run ConnectionDiagnostics from the CLI
 │   └── DeployToHub.md         Notes on flashing and running on the hub
 ├── examples/
@@ -259,6 +263,7 @@ common error fixes.
 | Detect a connected SPIKE hub                   | `python scripts/DetectHub.py`               |
 | Run HubMain with live plots                    | `python scripts/PlotHubMainLive.py`         |
 | Run HubDriveSmoke with a post-run plot         | `python scripts/PlotHubDriveSmoke.py`       |
+| Run package-backed drive smoke with a plot     | `python scripts/PlotHubPackageDriveSmoke.py` |
 | Run desktop side connection diagnostics        | `python scripts/RunDiagnostics.py`          |
 | Run a Pybricks program on the hub via CLI      | `pybricksdev run ble hub/HubMain.py`        |
 | Test Bluetooth terminal connection on the hub  | `pybricksdev run ble hub/HubBluetoothTest.py` |
@@ -307,8 +312,9 @@ common error fixes.
    velocity. Capture data with `DataLogger`.
 6. **Outer loop balancing controller.** Replace the body of `LyapunovController.Compute`
    with a real Lyapunov based control law. See `docs/FutureControlRoadmap.md`.
-7. **On hub deployment.** Port the relevant Python into a single self contained Pybricks
-   script (the constraint described in section 3) and run it directly on the hub.
+7. **On hub deployment.** Prefer a single self contained Pybricks script when you want
+   the most reliable upload path. Use the package-backed smoke path when you explicitly
+   want to test a hub-safe `LegoBalance` module on the real hub.
 
 ## 11. How To Add A New Controller, Sensor, Or Estimator
 
@@ -326,9 +332,9 @@ common error fixes.
 
 - This release does not include any tested control law for balancing. The
   `LyapunovController` is a documented placeholder.
-- The hub side scripts under `hub/` are minimal Pybricks programs. They have been written
-  against the documented Pybricks APIs but they have not been validated on physical
-  hardware in this scaffold release. Treat them as a starting point.
+- The hub side scripts under `hub/` are minimal Pybricks programs. The package-backed
+  smoke entrypoint lives under `src/` only so `pybricksdev` can find and upload the
+  `LegoBalance` runtime module beside it.
 - The IMU sign and axis convention on the SPIKE Prime hub depends on how the hub is
   mounted on the chassis. The exact mapping you need is described in
   `docs/HardwareAssumptions.md` and you must verify it on your specific build.
@@ -415,6 +421,17 @@ tilt limit, and walks through the same forward / stop / backward / stop schedule
 hardware-validated wheel velocity. Its `DATA` rows are consumed by `scripts/PlotHubDriveSmoke.py`,
 which plots `[theta, thetaDot, phi, phiDot]`, the issued wheel command, and the drive gate
 status once the run ends.
+
+To test the package-backed hub path instead of the standalone hub file:
+
+```bash
+python scripts/PlotHubPackageDriveSmoke.py
+```
+
+That plotter runs `src/HubPackageDriveSmoke.py`, which imports
+`LegoBalance.HubDriveSmokeRuntime` on the hub. The runtime is a MicroPython-safe package
+subset kept aligned with the desktop `StateEstimator`, `DriveCommandController`, and
+`SafetyMonitor` by tests.
 
 > **Safety:** the drive smoke flow commands wheel motion. **Block the wheels or hold the
 > robot in your hand** the first time you run it. The default magnitude has been validated

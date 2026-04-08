@@ -110,9 +110,10 @@ desktop, against `examples/ClosedLoopSimulation.py`, before any hub deployment.
   it returns zero. Replace its body with the Lyapunov based control law from section 3.
 - **Safety.** `SafetyMonitor.Check(state, control)` is already wired and will gate the
   command before it reaches the motors.
-- **Deployment.** Once the controller works in `ClosedLoopSimulation.py`, copy the math
-  into a single self contained Pybricks program in `hub/`. The function bodies should be
-  identical, with imports replaced by the Pybricks equivalents.
+- **Deployment.** Once the controller works in `ClosedLoopSimulation.py`, either copy the
+  math into a single self contained Pybricks program in `hub/` or move the hub-safe subset
+  into a package runtime module like `HubDriveSmokeRuntime`. Keep the function bodies
+  identical across the desktop and hub paths.
 
 ## 5. What Is Out Of Scope For This Repo
 

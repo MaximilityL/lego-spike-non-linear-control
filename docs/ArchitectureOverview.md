@@ -10,13 +10,14 @@ There are two distinct execution environments.
 - **Desktop side.** Standard CPython 3.10 or newer. Lives entirely under
   `src/LegoBalance/`, `tests/`, `examples/`, and `scripts/`. Has access to the full
   Python ecosystem, type hints, dataclasses, pytest, ruff, mypy.
-- **Hub side.** MicroPython under Pybricks, running on the SPIKE Prime hub. Lives
-  entirely under `hub/`. Cannot import from `src/LegoBalance/` because Pybricks programs
-  are usually a single file and the hub does not have a normal filesystem the way a
-  laptop does.
+- **Hub side.** MicroPython under Pybricks, running on the SPIKE Prime hub. Most hub
+  scripts live under `hub/` and are self contained. The package-backed drive smoke
+  entrypoint lives at `src/HubPackageDriveSmoke.py` so `pybricksdev` can upload the
+  hub-safe `LegoBalance.HubDriveSmokeRuntime` module beside it.
 
 The desktop side is where you design, test, and document. The hub side is where you
-actually run code. The two are kept in sync by convention, not by code import.
+actually run code. The normal path keeps the two in sync by convention; the package smoke
+path imports only the MicroPython-safe runtime subset.
 
 ## 2. The Module Layers
 
@@ -78,7 +79,8 @@ time. To debug it you need to be able to:
 Abstract interfaces make all of this trivial. The desktop code never imports from
 `pybricks.*`. It always talks through `HubInterface`, `MotorInterface`, and
 `ImuInterface`. In tests we inject mocks. On the hub, the equivalent functions are
-implemented inline against the real Pybricks API in scripts under `hub/`.
+usually implemented inline against the real Pybricks API in scripts under `hub/`; the
+package-backed smoke test imports the hub-safe runtime subset instead.
 
 ## 5. Why Not Use One Big Class
 

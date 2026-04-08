@@ -13,14 +13,15 @@ installer page.
 
 ## 2. Where Pybricks Programs Live
 
-A Pybricks program is a single Python file uploaded to the hub. It cannot import from
-arbitrary places in your filesystem the way a CPython program can. Multi file projects
-are technically possible in recent Pybricks versions but the simple, reliable, beginner
-friendly path is "one file per program".
+A Pybricks program is usually a single Python file uploaded to the hub. It cannot import
+from arbitrary places in your filesystem the way a CPython program can. Multi file
+projects are technically possible in recent Pybricks versions, but the simple, reliable,
+beginner friendly path is "one file per program".
 
 This is why this repo has a `hub/` directory holding short, self contained scripts. The
-desktop side `LegoBalance` package is not uploaded to the hub. When you finalize a
-controller you copy the relevant Python from the desktop into a hub side script.
+normal desktop side `LegoBalance` package is not uploaded to the hub. The one deliberate
+exception is `src/HubPackageDriveSmoke.py`, which imports the hub-safe
+`LegoBalance.HubDriveSmokeRuntime` subset so package logic can be tested on hardware.
 
 ## 3. Useful Imports
 

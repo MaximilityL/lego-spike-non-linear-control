@@ -34,6 +34,7 @@ pybricksdev run ble hub/HubImuTest.py
 pybricksdev run ble hub/HubEncoderTest.py
 pybricksdev run ble hub/HubMotorTest.py
 pybricksdev run ble hub/HubDriveSmoke.py
+pybricksdev run ble src/HubPackageDriveSmoke.py
 ```
 
 If discovery fails, give it the hub name explicitly:
@@ -66,6 +67,16 @@ status.
 Do not run `pybricksdev run ble scripts/PlotHubDriveSmoke.py`; that file is the laptop
 plotter. Upload/run `hub/HubDriveSmoke.py`, or let `python scripts/PlotHubDriveSmoke.py`
 launch it for you.
+
+To test the package-backed drive smoke path instead, run:
+
+```bash
+python scripts/PlotHubPackageDriveSmoke.py
+```
+
+This launches `src/HubPackageDriveSmoke.py`, which imports the hub-safe
+`LegoBalance.HubDriveSmokeRuntime` package module. The entrypoint lives under `src/`
+because `pybricksdev` resolves local package imports relative to the uploaded script.
 
 You can rename your hub from the gear icon in `code.pybricks.com`.
 
@@ -100,17 +111,20 @@ Log out and back in.
 
 ### 2.4. "ImportError" on the hub
 
-Pybricks programs must only import from `pybricks.*`. If you accidentally
-import from `LegoBalance` or any other desktop package, the program will
-fail to upload. The hub side scripts under `hub/` are written so that this
-cannot happen.
+Most Pybricks programs here should only import from `pybricks.*`. If you accidentally
+import the normal desktop `LegoBalance` modules, `yaml`, `dataclasses`, or another
+desktop package, the program can fail on the hub. The exception is
+`src/HubPackageDriveSmoke.py`, which imports only the hub-safe
+`LegoBalance.HubDriveSmokeRuntime` subset.
 
 ## 3. Why The Hub Side Scripts Are Self Contained
 
 Pybricks programs cannot freely import from arbitrary places on your
-laptop. They are uploaded one file at a time. Multi file uploads exist in
-recent Pybricks versions but they are not as smooth as a single file. The
-clean rule for this project is "one self contained file per hub program".
+laptop. Multi file uploads exist in recent Pybricks versions, but they are
+resolved relative to the entrypoint file. The clean default rule for this
+project is "one self contained file per hub program"; the package-backed
+drive smoke test is the deliberate exception used to test hub-safe
+`LegoBalance` logic on hardware.
 
 When you finalize a controller on the desktop, the path is:
 
