@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-04-08
+
+### Changed
+- Aligned the standalone `hub/HubMain.py` IMU zero-offset with the current
+  hardware calibration so the direct hub telemetry/readout path matches the
+  latest measured upright reference instead of reporting against the older
+  `-60 deg` offset.
+- Kept this as a small follow-up release on top of `1.2.0`: the package-backed
+  real balance path remains runnable and observable, while the standalone
+  `HubMain.py` sensor bring-up path now reflects the same current calibration
+  intent used during ongoing balance tuning.
+
 ## [1.2.0] - 2026-04-08
 
 ### Added
