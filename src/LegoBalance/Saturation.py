@@ -5,9 +5,6 @@ control loop. It is also one of the easiest to test in isolation, so it lives
 here as its own module rather than being inlined into the controller.
 """
 
-from __future__ import annotations
-
-
 def SaturateScalar(value: float, lowerBound: float, upperBound: float) -> float:
     """Clamp a scalar to the closed interval ``[lowerBound, upperBound]``.
 
@@ -36,7 +33,7 @@ def SaturateSymmetric(value: float, magnitudeBound: float) -> float:
     return SaturateScalar(value, -magnitudeBound, magnitudeBound)
 
 
-def SaturateVector(values, lowerBounds, upperBounds) -> list[float]:
+def SaturateVector(values, lowerBounds, upperBounds) -> list:
     """Component wise saturation of a vector.
 
     All three iterables must have the same length. Returned as a list so the
@@ -51,5 +48,5 @@ def SaturateVector(values, lowerBounds, upperBounds) -> list[float]:
         )
     return [
         SaturateScalar(v, lo, hi)
-        for v, lo, hi in zip(valuesList, lowerList, upperList, strict=True)
+        for v, lo, hi in zip(valuesList, lowerList, upperList)  # noqa: B905
     ]

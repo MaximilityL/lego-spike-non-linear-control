@@ -10,6 +10,20 @@ from LegoBalance.DriveCommandController import DriveCommand, DriveCommandControl
 from LegoBalance.RobotConfig import LoadConfig
 from LegoBalance.SafetyMonitor import SafetyMonitor
 from LegoBalance.StateEstimator import StateEstimator
+from scripts.GenerateHubDriveSmokeRuntime import (
+    RenderHubDriveSmokeRuntime,
+    ValidateAgainstVerifiedDriveSmoke,
+)
+
+
+def test_HubDefaultConfigModuleIsGeneratedFromDefaultYaml():
+    from LegoBalance.RobotConfig import DEFAULT_CONFIG_PATH
+
+    desktop = LoadConfig(path=DEFAULT_CONFIG_PATH, applyLocalOverride=False)
+    ValidateAgainstVerifiedDriveSmoke(desktop)
+    with open(hub_runtime.__file__, encoding="utf-8") as fh:
+        actual = fh.read()
+    assert actual == RenderHubDriveSmokeRuntime(desktop, DEFAULT_CONFIG_PATH)
 
 
 def test_HubDefaultConfigMatchesDesktopDefaultConfig():

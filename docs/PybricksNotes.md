@@ -22,7 +22,8 @@ This is why this repo has a `hub/` directory holding short, self contained scrip
 normal desktop side `LegoBalance` package is not uploaded to the hub. The one deliberate
 exception is `src/HubPackageDriveSmoke.py`, which imports the shared
 `LegoBalance.StateEstimator`, `DriveCommandController`, and `SafetyMonitor` modules so
-package logic can be tested on hardware.
+package logic can be tested on hardware. Its hub-safe config helper is generated from
+`configs/Default.yaml` by the laptop plotter before upload.
 
 ## 3. Useful Imports
 

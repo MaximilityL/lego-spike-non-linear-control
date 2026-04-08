@@ -5,10 +5,8 @@ small: one method, one return type. Anything fancier (gain scheduling, mode
 switching, anti windup) lives inside a specific controller subclass.
 """
 
-from __future__ import annotations
-
-from .BalanceState import BalanceState
-from .ControlInterfaces import ControlOutput
+from LegoBalance.BalanceState import BalanceState
+from LegoBalance.ControlInterfaces import ControlOutput
 
 
 class ControllerBase:

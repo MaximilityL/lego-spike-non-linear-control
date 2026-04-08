@@ -31,17 +31,20 @@ plug into. Swapping :class:`DriveCommandController` for
 :class:`LyapunovController` is a one line change in application code.
 """
 
-from __future__ import annotations
-
-from .BalanceState import BalanceState
-from .ControlInterfaces import ControlMode, ControlOutput
-from .ControllerBase import ControllerBase
+from LegoBalance.BalanceState import BalanceState
+from LegoBalance.ControlInterfaces import ControlMode, ControlOutput
+from LegoBalance.ControllerBase import ControllerBase
 
 
-class _EnumValue(str):
-    @property
-    def value(self) -> str:
-        return str(self)
+class _EnumValue:
+    def __init__(self, value: str) -> None:
+        self.value = value
+
+    def __str__(self) -> str:
+        return self.value
+
+    def __repr__(self) -> str:
+        return self.value
 
 
 class DriveCommand:
@@ -66,26 +69,27 @@ class DriveCommandController(ControllerBase):
     """
 
     def __init__(self, config: object) -> None:
-        super().__init__(config)
-        self._command: DriveCommand = DriveCommand.Stop
-        self._driveSpeed = float(config.drive.testSpeed)
+        ControllerBase.__init__(self, config)
+        self.command = DriveCommand.Stop
+        self.driveSpeed = float(config.drive.testSpeed)
         # The wheel velocity ceiling is enforced again by the safety monitor.
         # We also clip here so that nothing downstream of the controller has
         # to worry about an obviously unsafe magnitude leaking through.
-        if self._driveSpeed < 0.0:
+        if self.driveSpeed < 0.0:
             raise ValueError("drive.testSpeed must be non negative")
-        if self._driveSpeed > config.motors.maxAngularRate:
-            self._driveSpeed = float(config.motors.maxAngularRate)
+        if self.driveSpeed > config.motors.maxAngularRate:
+            self.driveSpeed = float(config.motors.maxAngularRate)
 
     # ----- Public command surface. -----
     def SetCommand(self, command: DriveCommand) -> None:
         """Set the next drive command. Takes effect on the next :meth:`Compute`."""
-        if not any(
-            command is allowed
-            for allowed in (DriveCommand.Stop, DriveCommand.Forward, DriveCommand.Backward)
+        if not (
+            command is DriveCommand.Stop
+            or command is DriveCommand.Forward
+            or command is DriveCommand.Backward
         ):
             raise TypeError(f"command must be a DriveCommand, got {type(command).__name__}")
-        self._command = command
+        self.command = command
 
     def Forward(self) -> None:
         """Convenience: set the command to :attr:`DriveCommand.Forward`."""
@@ -98,16 +102,6 @@ class DriveCommandController(ControllerBase):
     def Stop(self) -> None:
         """Convenience: set the command to :attr:`DriveCommand.Stop`."""
         self.SetCommand(DriveCommand.Stop)
-
-    @property
-    def command(self) -> DriveCommand:
-        """Currently active drive command."""
-        return self._command
-
-    @property
-    def driveSpeed(self) -> float:
-        """Magnitude of the wheel velocity used for forward/backward, in rad/s."""
-        return self._driveSpeed
 
     # ----- Controller surface. -----
     def Compute(self, state: BalanceState) -> ControlOutput:
@@ -130,12 +124,12 @@ class DriveCommandController(ControllerBase):
         if not state.valid:
             return ControlOutput.Stop(mode=ControlMode.Velocity, timestamp=state.timestamp)
 
-        if self._command is DriveCommand.Stop:
+        if self.command is DriveCommand.Stop:
             magnitude = 0.0
-        elif self._command is DriveCommand.Forward:
-            magnitude = +self._driveSpeed
-        elif self._command is DriveCommand.Backward:
-            magnitude = -self._driveSpeed
+        elif self.command is DriveCommand.Forward:
+            magnitude = +self.driveSpeed
+        elif self.command is DriveCommand.Backward:
+            magnitude = -self.driveSpeed
         else:  # pragma: no cover - DriveCommand is closed
             magnitude = 0.0
 
@@ -148,4 +142,4 @@ class DriveCommandController(ControllerBase):
 
     def Reset(self) -> None:
         """Reset the active command back to :attr:`DriveCommand.Stop`."""
-        self._command = DriveCommand.Stop
+        self.command = DriveCommand.Stop

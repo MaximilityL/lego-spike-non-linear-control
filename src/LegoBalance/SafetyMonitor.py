@@ -8,11 +8,9 @@ The intent is that this module should be hard to bypass and easy to test.
 Both are true.
 """
 
-from __future__ import annotations
-
-from .BalanceState import BalanceState
-from .ControlInterfaces import ControlMode, ControlOutput
-from .Saturation import SaturateSymmetric
+from LegoBalance.BalanceState import BalanceState
+from LegoBalance.ControlInterfaces import ControlMode, ControlOutput
+from LegoBalance.Saturation import SaturateSymmetric
 
 
 class SafetyStatus:
@@ -30,7 +28,7 @@ class SafetyStatus:
         self,
         armed: bool = False,
         tripped: bool = False,
-        reasons: list[str] | None = None,
+        reasons=None,
         lastUpdateTime: float = 0.0,
     ) -> None:
         self.armed = armed
@@ -49,7 +47,7 @@ class SafetyMonitor:
 
     def __init__(self, config: object) -> None:
         self.config = config
-        self._status = SafetyStatus()
+        self.status = SafetyStatus()
         self._maxTilt = config.control.maxTilt
         self._maxTiltRate = config.control.maxTiltRate
         self._maxWheelRate = config.control.maxWheelRate
@@ -60,32 +58,28 @@ class SafetyMonitor:
         # absolute upper bound that trips the monitor for any controller.
         self._maxTiltForMotion = config.drive.maxTiltForMotion
 
-    @property
-    def status(self) -> SafetyStatus:
-        return self._status
-
     def Arm(self, currentTime: float = 0.0) -> None:
         """Arm the monitor and start the watchdog clock."""
-        self._status.armed = True
-        self._status.tripped = False
-        self._status.reasons = []
-        self._status.lastUpdateTime = currentTime
+        self.status.armed = True
+        self.status.tripped = False
+        self.status.reasons = []
+        self.status.lastUpdateTime = currentTime
 
     def Disarm(self) -> None:
         """Disarm the monitor. Future commands will be replaced with stops."""
-        self._status.armed = False
+        self.status.armed = False
 
     def Trip(self, reason: str) -> None:
         """Mark the monitor as tripped with a given reason."""
-        self._status.tripped = True
-        self._status.armed = False
-        self._status.reasons.append(reason)
+        self.status.tripped = True
+        self.status.armed = False
+        self.status.reasons.append(reason)
 
     def Check(
         self,
         state: BalanceState,
         controlOutput: ControlOutput,
-        currentTime: float | None = None,
+        currentTime=None,
     ) -> ControlOutput:
         """Validate one (state, control) pair.
 
@@ -98,8 +92,8 @@ class SafetyMonitor:
 
         # Watchdog. If too much time has passed since the last update we
         # do not trust anything.
-        if self._status.armed and self._watchdogTimeout > 0.0:
-            elapsed = currentTime - self._status.lastUpdateTime
+        if self.status.armed and self._watchdogTimeout > 0.0:
+            elapsed = currentTime - self.status.lastUpdateTime
             if elapsed > self._watchdogTimeout:
                 self.Trip(f"watchdog timeout: {elapsed:.3f}s > {self._watchdogTimeout:.3f}s")
 
@@ -117,10 +111,10 @@ class SafetyMonitor:
         leftClipped = SaturateSymmetric(controlOutput.leftCommand, self._maxWheelRate)
         rightClipped = SaturateSymmetric(controlOutput.rightCommand, self._maxWheelRate)
 
-        if not self._status.armed or self._status.tripped:
+        if not self.status.armed or self.status.tripped:
             return ControlOutput.Stop(mode=controlOutput.mode, timestamp=currentTime)
 
-        self._status.lastUpdateTime = currentTime
+        self.status.lastUpdateTime = currentTime
         return ControlOutput(
             leftCommand=leftClipped,
             rightCommand=rightClipped,

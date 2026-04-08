@@ -117,7 +117,8 @@ import the normal desktop `LegoBalance` modules, `yaml`, `dataclasses`, or anoth
 desktop package, the program can fail on the hub. The exception is
 `src/HubPackageDriveSmoke.py`, which imports the shared estimator/controller/safety
 modules after keeping that import path MicroPython-safe. Its helper
-`LegoBalance.HubDriveSmokeRuntime` supplies only default config values.
+`LegoBalance.HubDriveSmokeRuntime` supplies config values generated from
+`configs/Default.yaml` by the laptop plotter before upload.
 
 ## 3. Why The Hub Side Scripts Are Self Contained
 

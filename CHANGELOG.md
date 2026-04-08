@@ -17,6 +17,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Added a hub-safe default config helper and parity tests that keep its hardware-validated
   signs/constants aligned with the desktop config while proving the shared estimator,
   controller, and safety monitor accept it.
+- Added a generator for the hub-safe drive-smoke config so `configs/Default.yaml` remains
+  the source of truth even though the SPIKE hub cannot parse YAML directly.
 
 ### Changed
 - Kept the standalone `hub/HubDriveSmoke.py` as the hardware-verified reference path,
@@ -27,6 +29,12 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Removed desktop-only dataclass, enum, and abstract-base-class runtime dependencies from
   the shared state/controller boundary modules so Pybricks can import the same estimator
   and drive controller used on the desktop.
+- Made the package-backed plotter regenerate `LegoBalance.HubDriveSmokeRuntime` from
+  `configs/Default.yaml` before live upload, and fail early if the config no longer
+  matches the hardware-verified smoke constants.
+- Kept the hub import path MicroPython-safe by removing unsupported `__future__`,
+  `property`, `staticmethod`, relative import, and `math` dependencies from the modules
+  uploaded by `src/HubPackageDriveSmoke.py`.
 
 ## [1.0.2] - 2026-04-07
 

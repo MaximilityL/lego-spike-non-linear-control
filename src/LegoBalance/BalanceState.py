@@ -26,9 +26,6 @@ silently depend on a calibration value (the wheel radius) that may not yet
 be finalized.
 """
 
-from __future__ import annotations
-
-
 class BalanceState:
     """Estimated state of the two wheel inverted pendulum.
 
@@ -65,21 +62,15 @@ class BalanceState:
         self.timestamp = timestamp
         self.valid = valid
 
-    # Convenience aliases so callers that prefer the math notation can use
-    # ``state.theta`` / ``state.thetaDot`` instead of ``state.tilt`` /
-    # ``state.tiltRate``. They are read only views; the state attributes
-    # remain the single source of truth.
-    @property
-    def theta(self) -> float:
-        """Alias for :attr:`tilt`. Body tilt angle in radians."""
-        return self.tilt
+    def __getattr__(self, name):
+        # Math-notation aliases for callers that prefer theta/thetaDot.
+        if name == "theta":
+            return self.tilt
+        if name == "thetaDot":
+            return self.tiltRate
+        raise AttributeError(name)
 
-    @property
-    def thetaDot(self) -> float:
-        """Alias for :attr:`tiltRate`. Body tilt rate in radians per second."""
-        return self.tiltRate
-
-    def AsList(self) -> list[float]:
+    def AsList(self) -> list:
         """Return ``[tilt, tiltRate, phi, phiDot]``.
 
         Convenience for tests and for any code that wants to treat the state
@@ -88,7 +79,7 @@ class BalanceState:
         """
         return [self.tilt, self.tiltRate, self.phi, self.phiDot]
 
-    def Copy(self) -> BalanceState:
+    def Copy(self) -> "BalanceState":
         """Return a deep copy. Used by the logger so log records are stable."""
         return BalanceState(
             tilt=self.tilt,
@@ -145,7 +136,7 @@ class StateBounds:
         tiltMax: float = 1.0,
         tiltRateMax: float = 10.0,
         phiDotMax: float = 17.453292519943295,
-        additional: list[str] | None = None,
+        additional=None,
     ) -> None:
         self.tiltMax = tiltMax
         self.tiltRateMax = tiltRateMax

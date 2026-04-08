@@ -4,7 +4,8 @@ This is the laptop-side companion for ``src/HubPackageDriveSmoke.py``. It is
 deliberately tiny and reuses the robust parser/plotter from
 ``scripts/PlotHubDriveSmoke.py``, but it changes the default hub entrypoint to
 the package-backed Pybricks script and loads the drive gate from
-``LegoBalance`` on the desktop.
+``configs/Default.yaml`` on the desktop. Before upload, it also regenerates the
+hub-safe config module from that same YAML file.
 
 Usage:
 
@@ -82,8 +83,9 @@ def ValidateArgs(args: argparse.Namespace) -> int:
 
 def Main() -> int:
     import PlotHubDriveSmoke as drive_plot
+    from GenerateHubDriveSmokeRuntime import GenerateHubDriveSmokeRuntime
 
-    from LegoBalance.RobotConfig import LoadConfig
+    from LegoBalance.RobotConfig import DEFAULT_CONFIG_PATH, LoadConfig
     from LegoBalance.Units import RadToDeg
 
     args = ParseArgs()
@@ -92,7 +94,7 @@ def Main() -> int:
         return argStatus
 
     if args.max_tilt_deg is None:
-        config = LoadConfig()
+        config = LoadConfig(path=DEFAULT_CONFIG_PATH, applyLocalOverride=False)
         maxTiltDeg = RadToDeg(config.drive.maxTiltForMotion)
     else:
         maxTiltDeg = args.max_tilt_deg
@@ -106,6 +108,16 @@ def Main() -> int:
     elif args.stdin:
         samples = drive_plot.CollectSamples(sys.stdin)
     else:
+        try:
+            generatedPath = GenerateHubDriveSmokeRuntime(DEFAULT_CONFIG_PATH)
+        except (FileNotFoundError, ValueError) as exc:
+            print(f"Hub config generation failed: {exc}", file=sys.stderr)
+            return 1
+        print(
+            f"Generated {generatedPath.relative_to(REPO_ROOT)} from "
+            f"{DEFAULT_CONFIG_PATH.relative_to(REPO_ROOT)}",
+            file=sys.stderr,
+        )
         try:
             samples = drive_plot.CollectFromPybricksdev(args)
         except FileNotFoundError:

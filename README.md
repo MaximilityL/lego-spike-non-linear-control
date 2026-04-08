@@ -430,8 +430,9 @@ python scripts/PlotHubPackageDriveSmoke.py
 
 That plotter runs `src/HubPackageDriveSmoke.py`, which imports
 `LegoBalance.StateEstimator`, `LegoBalance.DriveCommandController`, and
-`LegoBalance.SafetyMonitor` on the hub. `LegoBalance.HubDriveSmokeRuntime` only supplies a
-MicroPython-safe default config, kept aligned with the desktop config by tests.
+`LegoBalance.SafetyMonitor` on the hub. Before upload, the plotter reads
+`configs/Default.yaml`, verifies the hardware-tested signs and limits, and regenerates
+`LegoBalance.HubDriveSmokeRuntime` as the MicroPython-safe config module used by the hub.
 
 > **Safety:** the drive smoke flow commands wheel motion. **Block the wheels or hold the
 > robot in your hand** the first time you run it. The default magnitude has been validated

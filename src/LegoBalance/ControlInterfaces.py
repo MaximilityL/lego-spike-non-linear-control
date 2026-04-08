@@ -4,13 +4,15 @@ These are deliberately small so they are safe to log, copy, and pass between
 threads if you ever need to.
 """
 
-from __future__ import annotations
+class _EnumValue:
+    def __init__(self, value: str) -> None:
+        self.value = value
 
+    def __str__(self) -> str:
+        return self.value
 
-class _EnumValue(str):
-    @property
-    def value(self) -> str:
-        return str(self)
+    def __repr__(self) -> str:
+        return self.value
 
 
 class ControlMode:
@@ -54,8 +56,7 @@ class ControlOutput:
         self.mode = mode
         self.timestamp = timestamp
 
-    @staticmethod
-    def Stop(mode: ControlMode = ControlMode.Velocity, timestamp: float = 0.0) -> ControlOutput:
+    def Stop(mode: ControlMode = ControlMode.Velocity, timestamp: float = 0.0) -> "ControlOutput":
         """Return a zero command in the given mode.
 
         Used by the safety monitor to halt the motors when a fault is

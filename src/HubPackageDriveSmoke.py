@@ -4,8 +4,9 @@ Package-backed variant of ``hub/HubDriveSmoke.py`` for Pybricks.
 
 This file intentionally imports the normal ``LegoBalance`` estimator,
 controller, safety monitor, state boundary objects, and unit conversions. The
-only special hub-side helper is ``LegoBalance.HubDriveSmokeRuntime.DefaultConfig``
-because the normal config loader reads YAML from the desktop filesystem.
+only special hub-side helper is ``LegoBalance.HubDriveSmokeRuntime.DefaultConfig``.
+That module is generated from ``configs/Default.yaml`` by the laptop plotter
+because the hub cannot parse YAML directly.
 
 It is placed under ``src/`` rather than ``hub/`` because ``pybricksdev`` resolves
 multi-file imports relative to the uploaded entrypoint directory. From here it
@@ -15,8 +16,9 @@ Run it through the desktop plotter:
 
     python scripts/PlotHubPackageDriveSmoke.py
 
-Or run the hub program directly:
+Or run the hub program directly after regenerating the hub-safe config:
 
+    python scripts/GenerateHubDriveSmokeRuntime.py
     pybricksdev compile src/HubPackageDriveSmoke.py
     pybricksdev run ble src/HubPackageDriveSmoke.py
 """
@@ -97,6 +99,7 @@ def PrintBanner(config):
     print("   from LegoBalance.DriveCommandController import DriveCommandController")
     print("   from LegoBalance.SafetyMonitor import SafetyMonitor")
     print("   from LegoBalance.HubDriveSmokeRuntime import DefaultConfig")
+    print("   HubDriveSmokeRuntime is generated from configs/Default.yaml")
     print(" Config:")
     print(f"   loop period         : {LOOP_PERIOD_MS} ms")
     print(f"   telemetry every     : {PRINT_EVERY_N} loop(s)")
@@ -190,8 +193,8 @@ def Main():
             rawCommand = controller.Compute(state)
             safeCommand = safety.Check(state, rawCommand, currentTime=timeSec)
 
-            thetaDeg = RadToDeg(state.theta)
-            thetaDotDegPerSec = RadPerSecToDegPerSec(state.thetaDot)
+            thetaDeg = RadToDeg(state.tilt)
+            thetaDotDegPerSec = RadPerSecToDegPerSec(state.tiltRate)
             phiDeg = RadToDeg(state.phi)
             phiDotDegPerSec = RadPerSecToDegPerSec(state.phiDot)
 

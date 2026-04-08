@@ -34,10 +34,8 @@ filter or small Kalman filter can be dropped in without changing the public
 interface.
 """
 
-from __future__ import annotations
-
-from .BalanceState import BalanceState
-from .ControlInterfaces import Measurement
+from LegoBalance.BalanceState import BalanceState
+from LegoBalance.ControlInterfaces import Measurement
 
 
 class StateEstimator:
@@ -55,7 +53,7 @@ class StateEstimator:
     def __init__(self, config: object) -> None:
         self.config = config
         self.alpha = config.estimator.alpha
-        self._lastTimestamp: float | None = None
+        self._lastTimestamp = None
         # Most recent estimates, kept so future stateful filters can extend
         # this class without rewriting the constructor.
         self._tiltEstimate: float = 0.0

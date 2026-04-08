@@ -6,19 +6,17 @@ here are the only place that conversion happens, so that sign and unit bugs
 have one place to live.
 """
 
-from __future__ import annotations
-
-import math
+PI = 3.141592653589793
 
 
 def DegToRad(deg: float) -> float:
     """Convert degrees to radians."""
-    return deg * math.pi / 180.0
+    return deg * PI / 180.0
 
 
 def RadToDeg(rad: float) -> float:
     """Convert radians to degrees."""
-    return rad * 180.0 / math.pi
+    return rad * 180.0 / PI
 
 
 def DegPerSecToRadPerSec(degPerSec: float) -> float:
