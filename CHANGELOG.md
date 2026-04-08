@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2026-04-08
+
+### Changed
+- Made the package-backed hub smoke flow configuration-driven end to end. The
+  package runtime generator now copies the values from `configs/Default.yaml`
+  directly into `LegoBalance.HubDriveSmokeRuntime`, instead of rejecting local
+  edits that differ from a previously hard-coded smoke-test profile.
+- Moved the package smoke timing knobs into the `drive` config section so the
+  YAML now controls the hub loop period, telemetry cadence, stop leg duration,
+  forward/backward leg duration, test speed, and motion gate without editing
+  `src/HubPackageDriveSmoke.py`.
+- Updated the typed config defaults and parity tests to follow the current YAML
+  values, keeping the desktop loader, generated hub runtime, and package smoke
+  path aligned around the same source of truth.
+- Increased the shared drive-smoke plot typography and figure size so the popup
+  plots are easier to read for both the standalone and package-backed smoke
+  plotters.
+
 ## [1.0.3] - 2026-04-08
 
 ### Added

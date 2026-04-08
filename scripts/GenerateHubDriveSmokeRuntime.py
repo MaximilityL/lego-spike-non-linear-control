@@ -2,8 +2,8 @@
 
 The SPIKE hub cannot parse YAML, so the package-backed hub smoke test imports
 ``LegoBalance.HubDriveSmokeRuntime`` instead. This script keeps that tiny
-MicroPython-safe config module generated from the real desktop config and
-checks the hardware-verified drive-smoke constants before upload.
+MicroPython-safe config module generated from the real desktop config so the
+hub-side package smoke test follows the values set in YAML.
 """
 
 from __future__ import annotations
@@ -35,39 +35,14 @@ def _FmtFloat(value: float) -> str:
     return repr(float(value))
 
 
-def _CheckEqual(name: str, actual: object, expected: object) -> None:
-    if actual != expected:
-        raise ValueError(
-            f"{name} in configs/Default.yaml is {actual!r}, expected {expected!r} "
-            "from the verified hub/HubDriveSmoke.py hardware smoke."
-        )
-
-
-def _CheckApprox(name: str, actual: float, expected: float, tolerance: float = 1e-6) -> None:
-    if abs(actual - expected) > tolerance:
-        raise ValueError(
-            f"{name} in configs/Default.yaml is {actual!r}, expected {expected!r} "
-            "from the verified hub/HubDriveSmoke.py hardware smoke."
-        )
-
-
 def ValidateAgainstVerifiedDriveSmoke(config) -> None:
-    """Fail if Default.yaml no longer matches the hardware-verified smoke test."""
-    from LegoBalance.Units import RadToDeg
+    """Compatibility shim.
 
-    _CheckEqual("motors.leftPort", config.motors.leftPort, "B")
-    _CheckEqual("motors.rightPort", config.motors.rightPort, "A")
-    _CheckEqual("motors.forwardSign", config.motors.forwardSign, -1)
-    _CheckEqual("motors.leftEncoderSign", config.motors.leftEncoderSign, 1)
-    _CheckEqual("motors.rightEncoderSign", config.motors.rightEncoderSign, -1)
-    _CheckApprox("motors.maxAngularRate", RadToDeg(config.motors.maxAngularRate), 1000.0)
-    _CheckEqual("imu.tiltAxis", config.imu.tiltAxis, "pitch")
-    _CheckEqual("imu.tiltSign", config.imu.tiltSign, -1)
-    _CheckApprox("imu.zeroOffset", RadToDeg(config.imu.zeroOffset), -60.0)
-    _CheckApprox("imu.gyroBias", RadToDeg(config.imu.gyroBias), 0.0)
-    _CheckApprox("control.maxWheelRate", RadToDeg(config.control.maxWheelRate), 1000.0)
-    _CheckApprox("drive.testSpeed", RadToDeg(config.drive.testSpeed), 1000.0)
-    _CheckApprox("drive.maxTiltForMotion", RadToDeg(config.drive.maxTiltForMotion), 50.0)
+    The package smoke runtime now trusts the values loaded from
+    ``configs/Default.yaml``. Validation of types and basic ranges happens in
+    ``LegoBalance.RobotConfig``.
+    """
+    _ = config
 
 
 def RenderHubDriveSmokeRuntime(config, config_path: Path) -> str:
@@ -131,6 +106,10 @@ class ControlConfig:
 
 class DriveConfig:
     def __init__(self):
+        self.loopPeriodMs = {int(config.drive.loopPeriodMs)}
+        self.printEveryN = {int(config.drive.printEveryN)}
+        self.stopDurationMs = {int(config.drive.stopDurationMs)}
+        self.driveDurationMs = {int(config.drive.driveDurationMs)}
         self.testSpeed = {_FmtFloat(config.drive.testSpeed)}
         self.maxTiltForMotion = {_FmtFloat(config.drive.maxTiltForMotion)}
 
@@ -168,7 +147,6 @@ def GenerateHubDriveSmokeRuntime(
 
     source_path = DEFAULT_CONFIG_PATH if config_path is None else Path(config_path)
     config = LoadConfig(path=source_path, applyLocalOverride=False)
-    ValidateAgainstVerifiedDriveSmoke(config)
     content = RenderHubDriveSmokeRuntime(config, source_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     if output_path.exists() and output_path.read_text(encoding="utf-8") == content:
@@ -200,7 +178,7 @@ def Main() -> int:
     args = ParseArgs()
     output_path = GenerateHubDriveSmokeRuntime(args.config, args.output)
     print(f"Generated {_Relative(output_path)} from {_Relative(args.config)}")
-    print("Verified config matches hub/HubDriveSmoke.py hardware smoke constants.")
+    print("Hub package smoke runtime now follows the YAML values directly.")
     return 0
 
 

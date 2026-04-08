@@ -35,19 +35,6 @@ from LegoBalance.SafetyMonitor import SafetyMonitor
 from LegoBalance.StateEstimator import StateEstimator
 from LegoBalance.Units import DegPerSecToRadPerSec, DegToRad, RadPerSecToDegPerSec, RadToDeg
 
-LOOP_PERIOD_MS = 20
-PRINT_EVERY_N = 1
-STOP_DURATION_MS = 200
-DRIVE_DURATION_MS = 3000
-
-DRIVE_SCHEDULE = (
-    ("stop", DriveCommand.Stop, STOP_DURATION_MS),
-    ("forward", DriveCommand.Forward, DRIVE_DURATION_MS),
-    ("stop", DriveCommand.Stop, STOP_DURATION_MS),
-    ("backward", DriveCommand.Backward, DRIVE_DURATION_MS),
-    ("stop", DriveCommand.Stop, STOP_DURATION_MS),
-)
-
 
 def CenterPressed(hub):
     return Button.CENTER in hub.buttons.pressed()
@@ -88,7 +75,18 @@ def RunVelocity(motor, forwardSign, encoderSign, commandRadPerSec):
     motor.run(forwardSign * encoderSign * RadPerSecToDegPerSec(commandRadPerSec))
 
 
+def BuildDriveSchedule(config):
+    return (
+        ("stop", DriveCommand.Stop, config.drive.stopDurationMs),
+        ("forward", DriveCommand.Forward, config.drive.driveDurationMs),
+        ("stop", DriveCommand.Stop, config.drive.stopDurationMs),
+        ("backward", DriveCommand.Backward, config.drive.driveDurationMs),
+        ("stop", DriveCommand.Stop, config.drive.stopDurationMs),
+    )
+
+
 def PrintBanner(config):
+    driveSchedule = BuildDriveSchedule(config)
     print("============================================================")
     print(" HubPackageDriveSmoke : LegoBalance package smoke test")
     print(" This script commands wheel motion. Lift or block the wheels.")
@@ -101,8 +99,8 @@ def PrintBanner(config):
     print("   from LegoBalance.HubDriveSmokeRuntime import DefaultConfig")
     print("   HubDriveSmokeRuntime is generated from configs/Default.yaml")
     print(" Config:")
-    print(f"   loop period         : {LOOP_PERIOD_MS} ms")
-    print(f"   telemetry every     : {PRINT_EVERY_N} loop(s)")
+    print(f"   loop period         : {config.drive.loopPeriodMs} ms")
+    print(f"   telemetry every     : {config.drive.printEveryN} loop(s)")
     print(f"   drive test speed    : {RadPerSecToDegPerSec(config.drive.testSpeed):.1f} deg/s")
     print(f"   max tilt for motion : {RadToDeg(config.drive.maxTiltForMotion):.1f} deg")
     print(f"   tilt sign           : {config.imu.tiltSign}")
@@ -113,7 +111,7 @@ def PrintBanner(config):
     print(f"   right encoder sign  : {config.motors.rightEncoderSign}")
     print(" Schedule:")
     totalMs = 0
-    for label, command, durationMs in DRIVE_SCHEDULE:
+    for label, command, durationMs in driveSchedule:
         if command == DriveCommand.Forward:
             speed = RadPerSecToDegPerSec(config.drive.testSpeed)
         elif command == DriveCommand.Backward:
@@ -130,6 +128,7 @@ def PrintBanner(config):
 
 def Main():
     config = DefaultConfig()
+    driveSchedule = BuildDriveSchedule(config)
     hub = PrimeHub()
     leftMotor = Motor(MotorPort(config.motors.leftPort))
     rightMotor = Motor(MotorPort(config.motors.rightPort))
@@ -161,7 +160,7 @@ def Main():
         "phi_deg,phi_dot_deg_per_sec,left_cmd_deg_per_sec,right_cmd_deg_per_sec,gate"
     )
 
-    for leg in DRIVE_SCHEDULE:
+    for leg in driveSchedule:
         legLabel = leg[0]
         legCommand = leg[1]
         legDurationMs = leg[2]
@@ -246,14 +245,14 @@ def Main():
                 safeCommand.rightCommand,
             )
 
-            if iteration % PRINT_EVERY_N == 0:
+            if iteration % config.drive.printEveryN == 0:
                 gateLabel = "GATED" if gated else "SAFE"
                 print(
                     f"DATA,{timeSec:.3f},{legLabel},{thetaDeg:+.2f},{thetaDotDegPerSec:+.2f},{phiDeg:+.2f},{phiDotDegPerSec:+.2f},{RadPerSecToDegPerSec(safeCommand.leftCommand):+.2f},{RadPerSecToDegPerSec(safeCommand.rightCommand):+.2f},{gateLabel}"
                 )
 
             iteration += 1
-            wait(LOOP_PERIOD_MS)
+            wait(config.drive.loopPeriodMs)
 
         print(
             f"LEG END   : '{legLabel}' done at t={sw.time() / 1000.0:.2f} s"

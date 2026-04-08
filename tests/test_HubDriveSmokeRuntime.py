@@ -12,7 +12,6 @@ from LegoBalance.SafetyMonitor import SafetyMonitor
 from LegoBalance.StateEstimator import StateEstimator
 from scripts.GenerateHubDriveSmokeRuntime import (
     RenderHubDriveSmokeRuntime,
-    ValidateAgainstVerifiedDriveSmoke,
 )
 
 
@@ -20,7 +19,6 @@ def test_HubDefaultConfigModuleIsGeneratedFromDefaultYaml():
     from LegoBalance.RobotConfig import DEFAULT_CONFIG_PATH
 
     desktop = LoadConfig(path=DEFAULT_CONFIG_PATH, applyLocalOverride=False)
-    ValidateAgainstVerifiedDriveSmoke(desktop)
     with open(hub_runtime.__file__, encoding="utf-8") as fh:
         actual = fh.read()
     assert actual == RenderHubDriveSmokeRuntime(desktop, DEFAULT_CONFIG_PATH)
@@ -38,6 +36,10 @@ def test_HubDefaultConfigMatchesDesktopDefaultConfig():
     assert hub.motors.maxAngularRate == pytest.approx(desktop.motors.maxAngularRate)
     assert hub.imu.tiltSign == desktop.imu.tiltSign
     assert hub.imu.zeroOffset == pytest.approx(desktop.imu.zeroOffset)
+    assert hub.drive.loopPeriodMs == desktop.drive.loopPeriodMs
+    assert hub.drive.printEveryN == desktop.drive.printEveryN
+    assert hub.drive.stopDurationMs == desktop.drive.stopDurationMs
+    assert hub.drive.driveDurationMs == desktop.drive.driveDurationMs
     assert hub.drive.testSpeed == pytest.approx(desktop.drive.testSpeed)
     assert hub.drive.maxTiltForMotion == pytest.approx(desktop.drive.maxTiltForMotion)
 

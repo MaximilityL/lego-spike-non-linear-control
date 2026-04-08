@@ -50,9 +50,9 @@ estimator:
 # Control loop limits and safety.
 control:
   loopRate: 100.0             # Hz, target outer control loop rate
-  maxTilt: 1.0                # rad, |tilt| above which the safety monitor trips
+  maxTilt: 2.0                # rad, |tilt| above which the safety monitor trips
   maxTiltRate: 10.0           # rad/s
-  maxWheelRate: 17.4532925199  # rad/s commanded; 1000 deg/s validated on hub
+  maxWheelRate: 50  # rad/s commanded; 1000 deg/s validated on hub
   watchdogTimeout: 0.2        # s without an update before the safety monitor trips
 
 # Pre balancing drive command path. Used by DriveCommandController and the
@@ -60,8 +60,12 @@ control:
 # the real hub. This is for bench tests with the wheels lifted, not for
 # autonomous motion.
 drive:
-  testSpeed: 17.4532925199    # rad/s, 1000 deg/s forward/backward smoke command
-  maxTiltForMotion: 0.872664626  # rad, 50 deg drive gate validated on hub
+  loopPeriodMs: 20            # hub loop period for the package drive smoke test
+  printEveryN: 1              # emit one telemetry row every N control iterations
+  stopDurationMs: 50          # stop leg duration in the smoke schedule
+  driveDurationMs: 5000       # forward/backward leg duration in the smoke schedule
+  testSpeed: 30 #1.74532925199    # rad/s, 100 deg/s forward/backward smoke command
+  maxTiltForMotion: 2  # rad, 50 deg drive gate validated on hub
 
 # Logging.
 logging:

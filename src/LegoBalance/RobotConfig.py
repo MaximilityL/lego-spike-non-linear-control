@@ -57,9 +57,9 @@ class EstimatorConfig:
 @dataclass
 class ControlConfig:
     loopRate: float = 100.0
-    maxTilt: float = 1.0
+    maxTilt: float = 2.0
     maxTiltRate: float = 10.0
-    maxWheelRate: float = 17.453292519943295
+    maxWheelRate: float = 50.0
     watchdogTimeout: float = 0.2
 
 
@@ -67,13 +67,17 @@ class ControlConfig:
 class DriveConfig:
     """Settings for the pre balancing drive command path.
 
-    These mirror the values validated by ``hub/HubDriveSmoke.py`` on the
-    real build. The forward/backward/stop smoke flows are still bench tests
-    with the wheels lifted, not autonomous motion.
+    These defaults feed the package-backed hub smoke flow directly. The
+    forward/backward/stop smoke flow is still a bench test with the wheels
+    lifted, not autonomous motion.
     """
 
-    testSpeed: float = 17.453292519943295  # rad/s, 1000 deg/s smoke command
-    maxTiltForMotion: float = 0.8726646259971648  # rad, 50 deg drive gate
+    loopPeriodMs: int = 20
+    printEveryN: int = 1
+    stopDurationMs: int = 50
+    driveDurationMs: int = 5000
+    testSpeed: float = 30.0
+    maxTiltForMotion: float = 2.0
 
 
 @dataclass
@@ -121,6 +125,14 @@ class RobotConfig:
             raise ValueError("imu.tiltSign must be +1 or -1")
         if self.drive.testSpeed < 0:
             raise ValueError("drive.testSpeed must be non negative")
+        if self.drive.loopPeriodMs <= 0:
+            raise ValueError("drive.loopPeriodMs must be positive")
+        if self.drive.printEveryN <= 0:
+            raise ValueError("drive.printEveryN must be positive")
+        if self.drive.stopDurationMs < 0:
+            raise ValueError("drive.stopDurationMs must be non negative")
+        if self.drive.driveDurationMs < 0:
+            raise ValueError("drive.driveDurationMs must be non negative")
         if self.drive.maxTiltForMotion <= 0:
             raise ValueError("drive.maxTiltForMotion must be positive")
         if self.drive.maxTiltForMotion > self.control.maxTilt:

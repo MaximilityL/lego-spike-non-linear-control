@@ -28,9 +28,14 @@ def test_DefaultConfigLoadsAndValidates():
     assert config.imu.zeroOffset == pytest.approx(-1.0471975512)
     assert 0.0 < config.estimator.alpha < 1.0
     assert config.control.maxTilt > 0
-    assert config.control.maxWheelRate == pytest.approx(17.4532925199)
-    assert config.drive.testSpeed == pytest.approx(17.4532925199)
-    assert config.drive.maxTiltForMotion == pytest.approx(0.872664626)
+    assert config.control.maxTilt == pytest.approx(2.0)
+    assert config.control.maxWheelRate == pytest.approx(50.0)
+    assert config.drive.loopPeriodMs == 20
+    assert config.drive.printEveryN == 1
+    assert config.drive.stopDurationMs == 50
+    assert config.drive.driveDurationMs == 5000
+    assert config.drive.testSpeed == pytest.approx(30.0)
+    assert config.drive.maxTiltForMotion == pytest.approx(2.0)
 
 
 def test_DefaultPathExists():

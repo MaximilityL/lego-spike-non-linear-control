@@ -53,6 +53,13 @@ DATA_PREFIX = "DATA,"
 # horizontal envelope on the theta panel so the operator can see when the
 # tilt is approaching the drive gate.
 DEFAULT_MAX_TILT_FOR_MOTION_DEG = 50.0  # ~0.87 rad from configs/Default.yaml
+BASE_FONT_SIZE = 14
+TITLE_FONT_SIZE = 22
+AXIS_LABEL_FONT_SIZE = 18
+LEGEND_FONT_SIZE = 14
+TICK_FONT_SIZE = 14
+ANNOTATION_FONT_SIZE = 14
+SUMMARY_FONT_SIZE = 13
 
 
 @dataclass(frozen=True)
@@ -211,6 +218,18 @@ def Plot(samples: list[DriveSample], maxTiltDeg: float, runName: str = "HubDrive
         )
         return 1
 
+    plt.rcParams.update(
+        {
+            "font.size": BASE_FONT_SIZE,
+            "axes.titlesize": TITLE_FONT_SIZE,
+            "axes.labelsize": AXIS_LABEL_FONT_SIZE,
+            "xtick.labelsize": TICK_FONT_SIZE,
+            "ytick.labelsize": TICK_FONT_SIZE,
+            "legend.fontsize": LEGEND_FONT_SIZE,
+            "figure.titlesize": TITLE_FONT_SIZE,
+        }
+    )
+
     times = [s.t_s for s in samples]
     theta = [s.theta_deg for s in samples]
     thetaDot = [s.theta_dot_deg_per_sec for s in samples]
@@ -219,10 +238,11 @@ def Plot(samples: list[DriveSample], maxTiltDeg: float, runName: str = "HubDrive
     leftCmd = [s.left_cmd_deg_per_sec for s in samples]
     rightCmd = [s.right_cmd_deg_per_sec for s in samples]
 
-    fig, axes = plt.subplots(5, 1, sharex=True, figsize=(10, 9), num=runName + " run")
+    fig, axes = plt.subplots(5, 1, sharex=True, figsize=(12, 10), num=runName + " run")
     fig.suptitle(
         runName + ": estimator state and drive command\n"
-        "implemented state [theta, thetaDot, phi, phiDot]"
+        "implemented state [theta, thetaDot, phi, phiDot]",
+        fontsize=TITLE_FONT_SIZE,
     )
 
     axTheta, axThetaDot, axPhi, axPhiDot, axCmd = axes
@@ -232,9 +252,9 @@ def Plot(samples: list[DriveSample], maxTiltDeg: float, runName: str = "HubDrive
     axTheta.axhline(+maxTiltDeg, color="tab:red", linestyle="--", linewidth=1.0,
                     label="max tilt for motion (+/-)")
     axTheta.axhline(-maxTiltDeg, color="tab:red", linestyle="--", linewidth=1.0)
-    axTheta.set_ylabel("theta (deg)")
+    axTheta.set_ylabel("theta (deg)", fontsize=AXIS_LABEL_FONT_SIZE)
     axTheta.grid(True, alpha=0.35)
-    axTheta.legend(loc="upper right", fontsize=8)
+    axTheta.legend(loc="upper right", fontsize=LEGEND_FONT_SIZE)
 
     # Shade the contiguous regions where the hub side gate was active.
     spans = ContiguousGatedSpans(samples)
@@ -243,27 +263,30 @@ def Plot(samples: list[DriveSample], maxTiltDeg: float, runName: str = "HubDrive
             ax.axvspan(spanStart, spanEnd, color="tab:red", alpha=0.10)
 
     axThetaDot.plot(times, thetaDot, color="tab:orange", linewidth=1.4, label="thetaDot")
-    axThetaDot.set_ylabel("thetaDot (deg/s)")
+    axThetaDot.set_ylabel("thetaDot (deg/s)", fontsize=AXIS_LABEL_FONT_SIZE)
     axThetaDot.grid(True, alpha=0.35)
-    axThetaDot.legend(loc="upper right", fontsize=8)
+    axThetaDot.legend(loc="upper right", fontsize=LEGEND_FONT_SIZE)
 
     axPhi.plot(times, phi, color="tab:green", linewidth=1.6, label="phi")
-    axPhi.set_ylabel("phi (deg)")
+    axPhi.set_ylabel("phi (deg)", fontsize=AXIS_LABEL_FONT_SIZE)
     axPhi.grid(True, alpha=0.35)
-    axPhi.legend(loc="upper right", fontsize=8)
+    axPhi.legend(loc="upper right", fontsize=LEGEND_FONT_SIZE)
 
     axPhiDot.plot(times, phiDot, color="tab:purple", linewidth=1.4, label="phiDot")
-    axPhiDot.set_ylabel("phiDot (deg/s)")
+    axPhiDot.set_ylabel("phiDot (deg/s)", fontsize=AXIS_LABEL_FONT_SIZE)
     axPhiDot.grid(True, alpha=0.35)
-    axPhiDot.legend(loc="upper right", fontsize=8)
+    axPhiDot.legend(loc="upper right", fontsize=LEGEND_FONT_SIZE)
 
     axCmd.plot(times, leftCmd, color="tab:brown", linewidth=1.4, label="left cmd")
     axCmd.plot(times, rightCmd, color="tab:cyan", linewidth=1.4, linestyle="--",
                label="right cmd")
-    axCmd.set_ylabel("wheel cmd (deg/s)")
-    axCmd.set_xlabel("time (s)")
+    axCmd.set_ylabel("wheel cmd (deg/s)", fontsize=AXIS_LABEL_FONT_SIZE)
+    axCmd.set_xlabel("time (s)", fontsize=AXIS_LABEL_FONT_SIZE)
     axCmd.grid(True, alpha=0.35)
-    axCmd.legend(loc="upper right", fontsize=8)
+    axCmd.legend(loc="upper right", fontsize=LEGEND_FONT_SIZE)
+
+    for ax in axes:
+        ax.tick_params(axis="both", labelsize=TICK_FONT_SIZE)
 
     # Mark each leg transition with a thin vertical line and a top label.
     for legLabel, legStart in LegBoundaries(samples):
@@ -275,7 +298,7 @@ def Plot(samples: list[DriveSample], maxTiltDeg: float, runName: str = "HubDrive
             " " + legLabel,
             verticalalignment="top",
             horizontalalignment="left",
-            fontsize=8,
+            fontsize=ANNOTATION_FONT_SIZE,
             color="black",
             alpha=0.6,
         )
@@ -293,7 +316,7 @@ def Plot(samples: list[DriveSample], maxTiltDeg: float, runName: str = "HubDrive
             "gated=" + str(gatedCount),
         )
     )
-    fig.text(0.01, 0.005, summary, fontsize=8, color="dimgray")
+    fig.text(0.01, 0.005, summary, fontsize=SUMMARY_FONT_SIZE, color="dimgray")
 
     fig.tight_layout(rect=(0.0, 0.02, 1.0, 0.96))
     plt.show()

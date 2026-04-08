@@ -49,16 +49,20 @@ class EstimatorConfig:
 class ControlConfig:
     def __init__(self):
         self.loopRate = 100.0
-        self.maxTilt = 1.0
+        self.maxTilt = 2.0
         self.maxTiltRate = 10.0
-        self.maxWheelRate = 17.4532925199
+        self.maxWheelRate = 50.0
         self.watchdogTimeout = 0.2
 
 
 class DriveConfig:
     def __init__(self):
-        self.testSpeed = 17.4532925199
-        self.maxTiltForMotion = 0.872664626
+        self.loopPeriodMs = 20
+        self.printEveryN = 1
+        self.stopDurationMs = 50
+        self.driveDurationMs = 5000
+        self.testSpeed = 30.0
+        self.maxTiltForMotion = 2.0
 
 
 class LoggingConfig:
