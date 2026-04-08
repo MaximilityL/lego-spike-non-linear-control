@@ -102,6 +102,7 @@ class ControlConfig:
         self.maxTiltRate = {_FmtFloat(config.control.maxTiltRate)}
         self.maxWheelRate = {_FmtFloat(config.control.maxWheelRate)}
         self.watchdogTimeout = {_FmtFloat(config.control.watchdogTimeout)}
+        self.targetTilt = {_FmtFloat(config.control.targetTilt)}
 
 
 class DriveConfig:

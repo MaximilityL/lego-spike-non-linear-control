@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lego-balance"
-version = "1.1.1"
+version = "1.2.0"
 description = "Starter scaffold for a LEGO SPIKE two wheel self balancing robot using Pybricks."
 readme = "README.md"
 requires-python = ">=3.10"

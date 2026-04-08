@@ -38,7 +38,10 @@ motors:
 imu:
   tiltAxis: "pitch"           # which IMU axis tracks body tilt
   tiltSign: -1                 # +1 or -1 to flip sign convention if needed
-  zeroOffset: -1.0471975512   # radians, calibrated zero (-60 deg)
+  # zeroOffset: -1.0471975512   # radians, calibrated zero (-60 deg)
+  zeroOffset: -0.872665   # radians, calibrated zero (-50 deg)
+  # zeroOffset: -0.785398   # radians, calibrated zero (-45 deg)
+  # zeroOffset: -0.698131701   # radians, calibrated zero (-40 deg)
   gyroBias: 0.0               # rad/s, calibrated bias
 
 # Estimator parameters.
@@ -54,6 +57,7 @@ control:
   maxTiltRate: 10.0           # rad/s
   maxWheelRate: 17.44  # rad/s commanded; 1000 deg/s validated on hub
   watchdogTimeout: 0.2        # s without an update before the safety monitor trips
+  targetTilt: 0.0             # rad, default upright reference for the balance controller
 
 # Pre balancing drive command path. Used by DriveCommandController and the
 # forward/backward/stop smoke flows. These mirror the values validated on

@@ -25,11 +25,12 @@ def test_DefaultConfigLoadsAndValidates():
     assert config.motors.leftEncoderSign == 1
     assert config.motors.rightEncoderSign == -1
     assert config.motors.maxAngularRate == pytest.approx(17.4532925199)
-    assert config.imu.zeroOffset == pytest.approx(-1.0471975512)
+    assert config.imu.zeroOffset == pytest.approx(-0.872665)
     assert 0.0 < config.estimator.alpha < 1.0
     assert config.control.maxTilt > 0
     assert config.control.maxTilt == pytest.approx(2.0)
     assert config.control.maxWheelRate == pytest.approx(17.44)
+    assert config.control.targetTilt == pytest.approx(0.0)
     assert config.drive.loopPeriodMs == 20
     assert config.drive.printEveryN == 1
     assert config.drive.stopDurationMs == 50

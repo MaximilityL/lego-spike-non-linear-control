@@ -64,22 +64,17 @@ not a strict torque-input SMC derivation from the full rigid-body equations.
 That matches both the repo contract and the intended Pybricks deployment path.
 """
 
-from __future__ import annotations
-
-import math
-
-from .BalanceState import BalanceState
-from .ControlInterfaces import ControlMode, ControlOutput
-from .ControllerBase import ControllerBase
-from .RobotConfig import RobotConfig
-from .Saturation import SaturateSymmetric
+from LegoBalance.BalanceState import BalanceState
+from LegoBalance.ControlInterfaces import ControlMode, ControlOutput
+from LegoBalance.ControllerBase import ControllerBase
+from LegoBalance.Saturation import SaturateSymmetric
 
 
 class NonLinearController(ControllerBase):
     """Sliding-mode-inspired velocity controller for pure sagittal balance."""
 
-    def __init__(self, config: RobotConfig) -> None:
-        super().__init__(config)
+    def __init__(self, config) -> None:
+        ControllerBase.__init__(self, config)
         self._maxWheelRate = config.control.maxWheelRate
 
         # Starter gains are kept local so the first real controller can land
@@ -115,13 +110,7 @@ class NonLinearController(ControllerBase):
         """Report that the controller now contains a real balancing law."""
         return False
 
-    def _ComputeSlidingVariable(
-        self,
-        theta: float,
-        thetaDot: float,
-        phi: float,
-        phiDot: float,
-    ) -> float:
+    def _ComputeSlidingVariable(self, theta, thetaDot, phi, phiDot):
         return (
             thetaDot
             + self._lambdaTheta * theta
@@ -129,9 +118,9 @@ class NonLinearController(ControllerBase):
             + self._lambdaPhi * phi
         )
 
-    def _Sat(self, value: float) -> float:
+    def _Sat(self, value):
         """Piecewise-linear saturation used for the switching term."""
-        if not math.isfinite(value):
+        if value != value:
             return 0.0
         if value > 1.0:
             return 1.0
@@ -139,13 +128,7 @@ class NonLinearController(ControllerBase):
             return -1.0
         return value
 
-    def _ComputeVelocityCommand(
-        self,
-        theta: float,
-        thetaDot: float,
-        phi: float,
-        phiDot: float,
-    ) -> tuple[float, float]:
+    def _ComputeVelocityCommand(self, theta, thetaDot, phi, phiDot):
         sigma = self._ComputeSlidingVariable(theta, thetaDot, phi, phiDot)
 
         # The linear part gives smooth local stabilization. The boundary-layer
@@ -160,10 +143,10 @@ class NonLinearController(ControllerBase):
         switchingCommand = self._kSigma * self._Sat(sigma / self._boundaryLayerWidth)
         return linearCommand + switchingCommand, sigma
 
-    def _ClampCommand(self, command: float) -> float:
+    def _ClampCommand(self, command):
         return SaturateSymmetric(command, self._maxWheelRate)
 
-    def Compute(self, state: BalanceState) -> ControlOutput:
+    def Compute(self, state):
         """Compute one bounded symmetric wheel-velocity command.
 
         Invalid states stop immediately. Valid states are mapped to the
@@ -177,7 +160,12 @@ class NonLinearController(ControllerBase):
         phi = state.phi
         phiDot = state.phiDot
 
-        if not all(math.isfinite(value) for value in (theta, thetaDot, phi, phiDot)):
+        if (
+            theta != theta
+            or thetaDot != thetaDot
+            or phi != phi
+            or phiDot != phiDot
+        ):
             return ControlOutput.Stop(mode=ControlMode.Velocity, timestamp=state.timestamp)
 
         command, sigma = self._ComputeVelocityCommand(theta, thetaDot, phi, phiDot)

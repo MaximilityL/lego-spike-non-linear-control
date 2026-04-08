@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-04-08
+
+### Added
+- Added a real package-backed hub balancing entrypoint in
+  `src/HubPackageBalance.py` that runs the shared `StateEstimator`,
+  `NonLinearController`, and `SafetyMonitor` on the SPIKE hub instead of the
+  desktop mock plant.
+- Added a laptop-side post-run telemetry plotter for the real balance run and
+  a live plotting wrapper that regenerates the hub-safe runtime config from
+  YAML, launches the hub program, and streams real telemetry into live plots
+  of reference vs tilt, the implemented state, and wheel command.
+- Added a desktop closed-loop balance plotter so the same shared controller
+  path can be exercised and visualized off-hardware when needed.
+
+### Changed
+- Extended the control config with a YAML-driven `targetTilt` reference so the
+  package-backed balance run can request an explicit tilt target without
+  moving the controller boundary or hard-coding the reference inside the hub
+  script.
+- Made the shared `NonLinearController` import path friendlier to the
+  package-backed Pybricks runtime by removing the desktop-only `__future__`
+  import and other avoidable runtime dependencies that blocked hub execution.
+- Reached the first real hardware integration milestone for balancing: the
+  package-backed hub path now runs the real estimator, controller, safety
+  monitor, telemetry, and plotting flow end to end, but the current control
+  law is not yet physically stabilizing the robot on hardware. This release is
+  about making the real loop observable and tunable, not claiming closed-loop
+  stability.
+
 ## [1.1.1] - 2026-04-08
 
 ### Changed

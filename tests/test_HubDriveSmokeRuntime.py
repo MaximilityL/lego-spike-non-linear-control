@@ -36,6 +36,7 @@ def test_HubDefaultConfigMatchesDesktopDefaultConfig():
     assert hub.motors.maxAngularRate == pytest.approx(desktop.motors.maxAngularRate)
     assert hub.imu.tiltSign == desktop.imu.tiltSign
     assert hub.imu.zeroOffset == pytest.approx(desktop.imu.zeroOffset)
+    assert hub.control.targetTilt == pytest.approx(desktop.control.targetTilt)
     assert hub.drive.loopPeriodMs == desktop.drive.loopPeriodMs
     assert hub.drive.printEveryN == desktop.drive.printEveryN
     assert hub.drive.stopDurationMs == desktop.drive.stopDurationMs

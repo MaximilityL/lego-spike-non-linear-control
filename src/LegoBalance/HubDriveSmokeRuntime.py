@@ -35,7 +35,7 @@ class ImuConfig:
     def __init__(self):
         self.tiltAxis = 'pitch'
         self.tiltSign = -1
-        self.zeroOffset = -1.0471975512
+        self.zeroOffset = -0.872665
         self.gyroBias = 0.0
 
 
@@ -53,6 +53,7 @@ class ControlConfig:
         self.maxTiltRate = 10.0
         self.maxWheelRate = 17.44
         self.watchdogTimeout = 0.2
+        self.targetTilt = 0.0
 
 
 class DriveConfig:

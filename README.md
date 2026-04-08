@@ -73,7 +73,7 @@ about what the hub can and cannot do.
 lego-spike-non-linear-control/
 ├── README.md                  Project overview and quickstart (this file)
 ├── CHANGELOG.md               Version history
-├── VERSION                    Plain text version, currently 1.1.1
+├── VERSION                    Plain text version, currently 1.2.0
 ├── pyproject.toml             Desktop side packaging and tool config
 ├── requirements.txt           Minimal runtime dependencies for desktop side
 ├── .gitignore
@@ -88,6 +88,7 @@ lego-spike-non-linear-control/
 │   ├── TestStrategy.md
 │   └── PybricksNotes.md
 ├── src/
+│   ├── HubPackageBalance.py    Package-backed Pybricks balance entrypoint
 │   ├── HubPackageDriveSmoke.py Package-backed Pybricks drive smoke entrypoint
 │   └── LegoBalance/           Desktop side Python package
 │       ├── __init__.py
@@ -123,7 +124,10 @@ lego-spike-non-linear-control/
 │   ├── DetectHub.py           USB / Bluetooth presence sniff
 │   ├── PlotHubMainLive.py     Live plots for telemetry streamed by HubMain
 │   ├── PlotHubDriveSmoke.py   Post-run plots for HubDriveSmoke telemetry
+│   ├── PlotHubPackageBalance.py Post-run plots for the package-backed balance run
+│   ├── PlotHubPackageBalanceLive.py Live plots for the package-backed balance run
 │   ├── PlotHubPackageDriveSmoke.py Post-run plots for the package-backed smoke
+│   ├── PlotClosedLoopBalance.py Package-backed closed-loop balance simulation plotter
 │   ├── RunDiagnostics.py      Run ConnectionDiagnostics from the CLI
 │   └── DeployToHub.md         Notes on flashing and running on the hub
 ├── examples/

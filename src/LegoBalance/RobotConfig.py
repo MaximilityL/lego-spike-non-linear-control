@@ -61,6 +61,7 @@ class ControlConfig:
     maxTiltRate: float = 10.0
     maxWheelRate: float = 17.44
     watchdogTimeout: float = 0.2
+    targetTilt: float = 0.0
 
 
 @dataclass
