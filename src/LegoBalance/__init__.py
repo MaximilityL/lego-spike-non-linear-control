@@ -39,7 +39,7 @@ else:
     from LegoBalance.LyapunovController import LyapunovController
     from LegoBalance.NonLinearController import NonLinearController
     from LegoBalance.MotorInterface import MotorInterface
-    from LegoBalance.RobotConfig import LoadConfig, RobotConfig
+    from LegoBalance.RobotConfig import ControllerConfig, LoadConfig, RobotConfig
     from LegoBalance.SafetyMonitor import SafetyMonitor, SafetyStatus
     from LegoBalance.Saturation import SaturateScalar, SaturateVector
     from LegoBalance.StateEstimator import StateEstimator
@@ -50,6 +50,7 @@ else:
         "ControlMode",
         "ControlOutput",
         "ControllerBase",
+        "ControllerConfig",
         "DataLogger",
         "DegPerSecToRadPerSec",
         "DegToRad",

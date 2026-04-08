@@ -62,6 +62,24 @@ def test_ComputeSaturatesAgainstConfiguredWheelRate():
     assert output.rightCommand == pytest.approx(config.control.maxWheelRate)
 
 
+def test_ComputeUsesConfiguredControllerGains():
+    config = LoadConfig(applyLocalOverride=False)
+    config.controller.lambdaTheta = 0.0
+    config.controller.lambdaPhiDot = 0.0
+    config.controller.lambdaPhi = 0.0
+    config.controller.kTheta = 2.0
+    config.controller.kThetaDot = 0.0
+    config.controller.kPhi = 0.0
+    config.controller.kPhiDot = 0.0
+    config.controller.kSigma = 0.0
+    controller = NonLinearController(config)
+
+    output = controller.Compute(_BuildValidState(tilt=0.3))
+
+    assert output.leftCommand == pytest.approx(0.6)
+    assert output.rightCommand == pytest.approx(0.6)
+
+
 def test_ResetClearsInternalBookkeeping():
     config = LoadConfig(applyLocalOverride=False)
     controller = NonLinearController(config)

@@ -105,6 +105,19 @@ class ControlConfig:
         self.targetTilt = {_FmtFloat(config.control.targetTilt)}
 
 
+class ControllerConfig:
+    def __init__(self):
+        self.lambdaTheta = {_FmtFloat(config.controller.lambdaTheta)}
+        self.lambdaPhiDot = {_FmtFloat(config.controller.lambdaPhiDot)}
+        self.lambdaPhi = {_FmtFloat(config.controller.lambdaPhi)}
+        self.kTheta = {_FmtFloat(config.controller.kTheta)}
+        self.kThetaDot = {_FmtFloat(config.controller.kThetaDot)}
+        self.kPhi = {_FmtFloat(config.controller.kPhi)}
+        self.kPhiDot = {_FmtFloat(config.controller.kPhiDot)}
+        self.kSigma = {_FmtFloat(config.controller.kSigma)}
+        self.boundaryLayerWidth = {_FmtFloat(config.controller.boundaryLayerWidth)}
+
+
 class DriveConfig:
     def __init__(self):
         self.loopPeriodMs = {int(config.drive.loopPeriodMs)}
@@ -131,6 +144,7 @@ class RobotConfig:
         self.imu = ImuConfig()
         self.estimator = EstimatorConfig()
         self.control = ControlConfig()
+        self.controller = ControllerConfig()
         self.drive = DriveConfig()
         self.logging = LoggingConfig()
 

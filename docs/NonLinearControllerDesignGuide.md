@@ -112,6 +112,15 @@ The controller constructor receives the full `RobotConfig`. Useful fields includ
 - `self.config.control.maxWheelRate`
 - `self.config.control.maxTilt`
 - `self.config.control.maxTiltRate`
+- `self.config.controller.lambdaTheta`
+- `self.config.controller.lambdaPhiDot`
+- `self.config.controller.lambdaPhi`
+- `self.config.controller.kTheta`
+- `self.config.controller.kThetaDot`
+- `self.config.controller.kPhi`
+- `self.config.controller.kPhiDot`
+- `self.config.controller.kSigma`
+- `self.config.controller.boundaryLayerWidth`
 
 If the controller needs precomputed gains or matrices, load or build them in `__init__`.
 Keep `Compute` focused on one control step.

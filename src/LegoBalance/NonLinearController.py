@@ -77,10 +77,8 @@ class NonLinearController(ControllerBase):
         ControllerBase.__init__(self, config)
         self._maxWheelRate = config.control.maxWheelRate
 
-        # Starter gains are kept local so the first real controller can land
-        # without widening the config/generation surface. They are chosen so
-        # tilt stabilization dominates wheel centering, matching the project
-        # priority order and keeping the hot path MicroPython-friendly.
+        # These values are loaded from configs/Default.yaml, and can be
+        # overridden in configs/local.yaml during hardware tuning.
         #
         # Tuning priorities:
         # - If the robot cannot catch itself, increase kTheta, kThetaDot,
@@ -88,19 +86,20 @@ class NonLinearController(ControllerBase):
         # - If it oscillates, increase kThetaDot and/or widen epsilon.
         # - If it balances but slowly drives away, increase kPhi or lambdaPhi.
         # - If commands chatter, widen epsilon and possibly reduce kSigma.
-        self._lambdaTheta = 6.0
-        self._lambdaPhiDot = 0.05
-        self._lambdaPhi = 0.01
+        controllerConfig = config.controller
+        self._lambdaTheta = controllerConfig.lambdaTheta
+        self._lambdaPhiDot = controllerConfig.lambdaPhiDot
+        self._lambdaPhi = controllerConfig.lambdaPhi
 
         # Positive tilt means leaning forward, and positive wheel velocity is
         # the corrective action in this repo's sign convention. That makes the
         # tilt terms positive here, while phi/phiDot terms oppose drift.
-        self._kTheta = 30.0
-        self._kThetaDot = 7.5
-        self._kPhi = 1.5
-        self._kPhiDot = 3.0
-        self._kSigma = 2.5
-        self._boundaryLayerWidth = 0.2
+        self._kTheta = controllerConfig.kTheta
+        self._kThetaDot = controllerConfig.kThetaDot
+        self._kPhi = controllerConfig.kPhi
+        self._kPhiDot = controllerConfig.kPhiDot
+        self._kSigma = controllerConfig.kSigma
+        self._boundaryLayerWidth = controllerConfig.boundaryLayerWidth
 
         self._lastTimestamp = 0.0
         self._lastSlidingVariable = 0.0

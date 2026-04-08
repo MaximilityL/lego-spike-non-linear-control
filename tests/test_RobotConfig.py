@@ -25,12 +25,17 @@ def test_DefaultConfigLoadsAndValidates():
     assert config.motors.leftEncoderSign == 1
     assert config.motors.rightEncoderSign == -1
     assert config.motors.maxAngularRate == pytest.approx(17.4532925199)
-    assert config.imu.zeroOffset == pytest.approx(-0.872665)
+    assert config.imu.zeroOffset == pytest.approx(-0.785398)
     assert 0.0 < config.estimator.alpha < 1.0
     assert config.control.maxTilt > 0
     assert config.control.maxTilt == pytest.approx(2.0)
     assert config.control.maxWheelRate == pytest.approx(17.44)
     assert config.control.targetTilt == pytest.approx(0.0)
+    assert config.controller.lambdaTheta == pytest.approx(6.0)
+    assert config.controller.kTheta == pytest.approx(45.0)
+    assert config.controller.kThetaDot == pytest.approx(7.5)
+    assert config.controller.kSigma == pytest.approx(2.0)
+    assert config.controller.boundaryLayerWidth == pytest.approx(0.5)
     assert config.drive.loopPeriodMs == 20
     assert config.drive.printEveryN == 1
     assert config.drive.stopDurationMs == 50
@@ -59,6 +64,7 @@ def test_LoadConfigAcceptsExplicitPath(tmp_path: Path):
         "motors": {"leftPort": "C", "rightPort": "D"},
         "estimator": {"alpha": 0.5},
         "control": {"maxTilt": 1.0},
+        "controller": {"kTheta": 12.5, "boundaryLayerWidth": 0.4},
         "drive": {"maxTiltForMotion": 0.5},
     }
     customPath = tmp_path / "custom.yaml"
@@ -68,6 +74,8 @@ def test_LoadConfigAcceptsExplicitPath(tmp_path: Path):
     assert config.chassis.wheelRadius == pytest.approx(0.05)
     assert config.motors.leftPort == "C"
     assert config.estimator.alpha == pytest.approx(0.5)
+    assert config.controller.kTheta == pytest.approx(12.5)
+    assert config.controller.boundaryLayerWidth == pytest.approx(0.4)
 
 
 def test_LoadConfigRejectsBadAlpha(tmp_path: Path):
@@ -90,6 +98,14 @@ def test_LoadConfigRejectsNegativeWheelRadius(tmp_path: Path):
 
 def test_LoadConfigRejectsBadEncoderSign(tmp_path: Path):
     bad = {"motors": {"rightEncoderSign": 0}}
+    badPath = tmp_path / "bad.yaml"
+    badPath.write_text(yaml.safe_dump(bad))
+    with pytest.raises(ValueError):
+        LoadConfig(path=badPath)
+
+
+def test_LoadConfigRejectsBadControllerBoundaryLayer(tmp_path: Path):
+    bad = {"controller": {"boundaryLayerWidth": 0.0}}
     badPath = tmp_path / "bad.yaml"
     badPath.write_text(yaml.safe_dump(bad))
     with pytest.raises(ValueError):

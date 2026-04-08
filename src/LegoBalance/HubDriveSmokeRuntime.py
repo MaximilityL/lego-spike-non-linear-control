@@ -35,7 +35,7 @@ class ImuConfig:
     def __init__(self):
         self.tiltAxis = 'pitch'
         self.tiltSign = -1
-        self.zeroOffset = -0.872665
+        self.zeroOffset = -0.785398
         self.gyroBias = 0.0
 
 
@@ -54,6 +54,19 @@ class ControlConfig:
         self.maxWheelRate = 17.44
         self.watchdogTimeout = 0.2
         self.targetTilt = 0.0
+
+
+class ControllerConfig:
+    def __init__(self):
+        self.lambdaTheta = 6.0
+        self.lambdaPhiDot = 0.05
+        self.lambdaPhi = 0.01
+        self.kTheta = 45.0
+        self.kThetaDot = 7.5
+        self.kPhi = 1.5
+        self.kPhiDot = 3.0
+        self.kSigma = 2.0
+        self.boundaryLayerWidth = 0.5
 
 
 class DriveConfig:
@@ -82,6 +95,7 @@ class RobotConfig:
         self.imu = ImuConfig()
         self.estimator = EstimatorConfig()
         self.control = ControlConfig()
+        self.controller = ControllerConfig()
         self.drive = DriveConfig()
         self.logging = LoggingConfig()
 

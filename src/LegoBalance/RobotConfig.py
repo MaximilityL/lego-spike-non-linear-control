@@ -65,6 +65,21 @@ class ControlConfig:
 
 
 @dataclass
+class ControllerConfig:
+    """Tuning constants for the nonlinear balancing controller."""
+
+    lambdaTheta: float = 6.0
+    lambdaPhiDot: float = 0.05
+    lambdaPhi: float = 0.01
+    kTheta: float = 45.0
+    kThetaDot: float = 7.5
+    kPhi: float = 1.5
+    kPhiDot: float = 3.0
+    kSigma: float = 2.0
+    boundaryLayerWidth: float = 0.5
+
+
+@dataclass
 class DriveConfig:
     """Settings for the pre balancing drive command path.
 
@@ -99,6 +114,7 @@ class RobotConfig:
     imu: ImuConfig = field(default_factory=ImuConfig)
     estimator: EstimatorConfig = field(default_factory=EstimatorConfig)
     control: ControlConfig = field(default_factory=ControlConfig)
+    controller: ControllerConfig = field(default_factory=ControllerConfig)
     drive: DriveConfig = field(default_factory=DriveConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
 
@@ -124,6 +140,24 @@ class RobotConfig:
             raise ValueError("control.maxTilt must be positive")
         if self.imu.tiltSign not in (-1, 1):
             raise ValueError("imu.tiltSign must be +1 or -1")
+        if self.controller.lambdaTheta < 0:
+            raise ValueError("controller.lambdaTheta must be non negative")
+        if self.controller.lambdaPhiDot < 0:
+            raise ValueError("controller.lambdaPhiDot must be non negative")
+        if self.controller.lambdaPhi < 0:
+            raise ValueError("controller.lambdaPhi must be non negative")
+        if self.controller.kTheta < 0:
+            raise ValueError("controller.kTheta must be non negative")
+        if self.controller.kThetaDot < 0:
+            raise ValueError("controller.kThetaDot must be non negative")
+        if self.controller.kPhi < 0:
+            raise ValueError("controller.kPhi must be non negative")
+        if self.controller.kPhiDot < 0:
+            raise ValueError("controller.kPhiDot must be non negative")
+        if self.controller.kSigma < 0:
+            raise ValueError("controller.kSigma must be non negative")
+        if self.controller.boundaryLayerWidth <= 0:
+            raise ValueError("controller.boundaryLayerWidth must be positive")
         if self.drive.testSpeed < 0:
             raise ValueError("drive.testSpeed must be non negative")
         if self.drive.loopPeriodMs <= 0:
@@ -166,6 +200,7 @@ def _DictToConfig(data: dict[str, Any]) -> RobotConfig:
         imu=ImuConfig(**(data.get("imu", {}) or {})),
         estimator=EstimatorConfig(**(data.get("estimator", {}) or {})),
         control=ControlConfig(**(data.get("control", {}) or {})),
+        controller=ControllerConfig(**(data.get("controller", {}) or {})),
         drive=DriveConfig(**(data.get("drive", {}) or {})),
         logging=LoggingConfig(**(data.get("logging", {}) or {})),
     )

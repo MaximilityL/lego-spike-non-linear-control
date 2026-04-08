@@ -37,6 +37,17 @@ def test_HubDefaultConfigMatchesDesktopDefaultConfig():
     assert hub.imu.tiltSign == desktop.imu.tiltSign
     assert hub.imu.zeroOffset == pytest.approx(desktop.imu.zeroOffset)
     assert hub.control.targetTilt == pytest.approx(desktop.control.targetTilt)
+    assert hub.controller.lambdaTheta == pytest.approx(desktop.controller.lambdaTheta)
+    assert hub.controller.lambdaPhiDot == pytest.approx(desktop.controller.lambdaPhiDot)
+    assert hub.controller.lambdaPhi == pytest.approx(desktop.controller.lambdaPhi)
+    assert hub.controller.kTheta == pytest.approx(desktop.controller.kTheta)
+    assert hub.controller.kThetaDot == pytest.approx(desktop.controller.kThetaDot)
+    assert hub.controller.kPhi == pytest.approx(desktop.controller.kPhi)
+    assert hub.controller.kPhiDot == pytest.approx(desktop.controller.kPhiDot)
+    assert hub.controller.kSigma == pytest.approx(desktop.controller.kSigma)
+    assert hub.controller.boundaryLayerWidth == pytest.approx(
+        desktop.controller.boundaryLayerWidth
+    )
     assert hub.drive.loopPeriodMs == desktop.drive.loopPeriodMs
     assert hub.drive.printEveryN == desktop.drive.printEveryN
     assert hub.drive.stopDurationMs == desktop.drive.stopDurationMs
