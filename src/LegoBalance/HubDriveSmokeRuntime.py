@@ -13,7 +13,7 @@ small Pybricks-friendly config object because the hub cannot parse YAML.
 class ChassisConfig:
     def __init__(self):
         self.wheelRadius = 0.0285
-        self.wheelBase = 0.12
+        self.wheelBase = 0.08
         self.bodyMass = 0.5
         self.bodyHeightCoM = 0.08
         self.bodyInertia = 0.002
@@ -51,7 +51,7 @@ class ControlConfig:
         self.loopRate = 100.0
         self.maxTilt = 2.0
         self.maxTiltRate = 10.0
-        self.maxWheelRate = 50.0
+        self.maxWheelRate = 17.44
         self.watchdogTimeout = 0.2
 
 
@@ -61,7 +61,7 @@ class DriveConfig:
         self.printEveryN = 1
         self.stopDurationMs = 50
         self.driveDurationMs = 5000
-        self.testSpeed = 30.0
+        self.testSpeed = 17.44
         self.maxTiltForMotion = 2.0
 
 
