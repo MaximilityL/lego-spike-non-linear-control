@@ -21,10 +21,10 @@ LOCAL_CONFIG_PATH = REPO_ROOT / "configs" / "local.yaml"
 @dataclass
 class ChassisConfig:
     wheelRadius: float = 0.0285
-    wheelBase: float = 0.12
-    bodyMass: float = 0.5
-    bodyHeightCoM: float = 0.08
-    bodyInertia: float = 0.002
+    wheelBase: float = 0.08
+    bodyMass: float = 0.4
+    bodyHeightCoM: float = 0.04
+    bodyInertia: float = 0.006
 
 
 @dataclass
@@ -59,7 +59,7 @@ class ControlConfig:
     loopRate: float = 100.0
     maxTilt: float = 2.0
     maxTiltRate: float = 10.0
-    maxWheelRate: float = 50.0
+    maxWheelRate: float = 17.44
     watchdogTimeout: float = 0.2
 
 
@@ -76,8 +76,8 @@ class DriveConfig:
     printEveryN: int = 1
     stopDurationMs: int = 50
     driveDurationMs: int = 5000
-    testSpeed: float = 30.0
-    maxTiltForMotion: float = 2.0
+    testSpeed: float = 17.44
+    maxTiltForMotion: float = 0.8726646259971648
 
 
 @dataclass

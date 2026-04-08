@@ -65,7 +65,7 @@ drive:
   stopDurationMs: 50          # stop leg duration in the smoke schedule
   driveDurationMs: 5000       # forward/backward leg duration in the smoke schedule
   testSpeed: 17.44 #1.74532925199    # rad/s, 100 deg/s forward/backward smoke command
-  maxTiltForMotion: 2  # rad, 50 deg drive gate validated on hub
+  maxTiltForMotion: 0.8726646259971648  # rad, 50 deg drive gate validated on hub
 
 # Logging.
 logging:

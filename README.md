@@ -73,7 +73,7 @@ about what the hub can and cannot do.
 lego-spike-non-linear-control/
 ├── README.md                  Project overview and quickstart (this file)
 ├── CHANGELOG.md               Version history
-├── VERSION                    Plain text version, currently 1.1.0
+├── VERSION                    Plain text version, currently 1.1.1
 ├── pyproject.toml             Desktop side packaging and tool config
 ├── requirements.txt           Minimal runtime dependencies for desktop side
 ├── .gitignore

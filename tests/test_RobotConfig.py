@@ -29,13 +29,13 @@ def test_DefaultConfigLoadsAndValidates():
     assert 0.0 < config.estimator.alpha < 1.0
     assert config.control.maxTilt > 0
     assert config.control.maxTilt == pytest.approx(2.0)
-    assert config.control.maxWheelRate == pytest.approx(50.0)
+    assert config.control.maxWheelRate == pytest.approx(17.44)
     assert config.drive.loopPeriodMs == 20
     assert config.drive.printEveryN == 1
     assert config.drive.stopDurationMs == 50
     assert config.drive.driveDurationMs == 5000
-    assert config.drive.testSpeed == pytest.approx(30.0)
-    assert config.drive.maxTiltForMotion == pytest.approx(2.0)
+    assert config.drive.testSpeed == pytest.approx(17.44)
+    assert config.drive.maxTiltForMotion == pytest.approx(0.8726646259971648)
 
 
 def test_DefaultPathExists():
@@ -58,6 +58,7 @@ def test_LoadConfigAcceptsExplicitPath(tmp_path: Path):
         "motors": {"leftPort": "C", "rightPort": "D"},
         "estimator": {"alpha": 0.5},
         "control": {"maxTilt": 1.0},
+        "drive": {"maxTiltForMotion": 0.5},
     }
     customPath = tmp_path / "custom.yaml"
     customPath.write_text(yaml.safe_dump(custom))

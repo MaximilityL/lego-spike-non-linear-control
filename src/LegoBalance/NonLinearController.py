@@ -1,145 +1,201 @@
-"""NonLinearController placeholder.
+"""Nonlinear balancing controller for the LEGO SPIKE inverted pendulum.
 
-This is the canonical home for the future nonlinear balancing controller.
-Its body is intentionally still a placeholder. The first real implementation
-is expected to be a Lyapunov based design, but the class name is broader so
-the repo does not hard-code one nonlinear method into the public API.
+This module implements the repository's first real balancing controller inside
+the existing `NonLinearController` boundary. The controller is intentionally
+practical rather than mechanically exact:
 
-The future balancing law will replace the body of :meth:`Compute` once the
-model has been identified and the design has been validated in simulation.
+- the estimator already provides the sign-corrected SI state
+  ``x = [theta, thetaDot, phi, phiDot]^T``,
+- the output boundary is a wheel *velocity* command, not axle torque,
+- Pybricks `Motor.run(...)` supplies the inner velocity loop,
+- therefore the outer controller is designed directly around measured state and
+  commanded wheel velocity.
 
-Read this docstring carefully before extending. It is the contract.
+Control objective
+-----------------
 
-Mathematical objective
-----------------------
+The controller prioritizes sagittal upright balance:
 
-Stabilize the upright equilibrium of a planar two wheel inverted pendulum
-with implemented state vector
+1. drive ``theta -> 0`` and ``thetaDot -> 0``,
+2. keep ``phiDot`` bounded in steady state,
+3. weakly pull ``phi`` back toward zero to reduce runaway drift.
 
-    x = [theta, thetaDot, phi, phiDot]^T
+Left and right wheel commands remain equal because yaw control is out of scope.
 
-where ``theta`` is the body tilt angle, ``thetaDot`` is the body tilt rate,
-``phi`` is the mean wheel rotation angle (the average of the two sign
-corrected wheel encoder angles, in radians), and ``phiDot`` is the mean
-wheel rotation rate in radians per second. The control input ``u`` is a
-wheel velocity command (or, equivalently, a wheel torque command if you set
-``ControlOutput.mode`` to ``ControlMode.Torque``).
+Sliding variable and boundary layer
+-----------------------------------
 
-The translational pair ``p`` (linear distance, in meters) and ``pDot``
-(linear velocity, in meters per second) is not part of the implemented
-state on purpose. It can be derived as ``p = r * phi`` and
-``pDot = r * phiDot`` using the chassis wheel radius via
-:meth:`BalanceState.LinearPosition` and :meth:`BalanceState.LinearVelocity`.
-Keeping ``phi`` and ``phiDot`` as the implemented state lets the estimator
-stay close to the raw encoder measurements and avoids any silent dependence
-on a wheel radius calibration that may not yet be finalized.
+A practical sliding variable is
 
-A candidate Lyapunov function is
+    sigma = thetaDot
+            + lambdaTheta * theta
+            + lambdaPhiDot * phiDot
+            + lambdaPhi * phi
 
-    V(x) = (1/2) x^T P x
+with ``lambdaTheta`` dominant and the wheel terms weaker. A candidate reaching
+energy is
 
-with ``P`` symmetric positive definite. The control law to be implemented
-must enforce
+    V = 0.5 * sigma^2
 
-    dV/dt = x^T P (A x + B u) <= -alpha V(x)
+so ``Vdot = sigma * sigmaDot``. Classical sliding mode control would shape
 
-for some ``alpha > 0`` along the closed loop trajectories of the planar
-inverted pendulum. The matrices ``A`` and ``B`` are obtained by linearizing
-the chassis dynamics about ``x = 0`` using the geometry from
-:class:`LegoBalance.RobotConfig.ChassisConfig`. See
-``docs/FutureControlRoadmap.md`` and
-``docs/NonLinearControllerDesignGuide.md`` for the design pipeline and the
-integration contract.
+    sigmaDot = -k * sign(sigma)
 
-Expected measurements
----------------------
+which gives ``Vdot = -k * |sigma| < 0`` away from the origin, but the hard
+`sign(...)` switch chatters badly on sampled LEGO hardware because of sensor
+noise, backlash, quantization, and motor dead zones.
 
-A :class:`LegoBalance.BalanceState` produced by
-:class:`LegoBalance.StateEstimator`. All four entries (``tilt``, ``tiltRate``,
-``phi``, ``phiDot``) must be valid SI quantities. The controller will refuse
-to act on a state with ``valid == False``.
+This implementation replaces the discontinuous switch with a boundary-layer
+saturation:
 
-Output
-------
+    sat(z) = z      for |z| <= 1
+           = sign(z) otherwise
 
-A :class:`LegoBalance.ControlInterfaces.ControlOutput` containing left and
-right wheel commands. For symmetric balancing the left and right commands
-are equal. Differential commands are reserved for a future yaw control
-extension and are not part of the balancing objective.
+applied as ``sat(sigma / epsilon)``. Outside the boundary layer the reaching
+behavior stays strong. Inside the layer the controller behaves like a
+continuous high-gain stabilizer, which is much less jittery on the real robot.
 
-Stabilization objective
------------------------
+Practical actuator assumption
+-----------------------------
 
-Drive ``theta`` and ``thetaDot`` to zero. Optionally drive ``phi`` and
-``phiDot`` to zero as well, with weaker priority. The relative weighting of
-tilt versus wheel rotation is encoded in the choice of ``Q`` (and therefore
-``P``) when the controller is finally implemented.
+Because the command crossing the controller boundary is wheel velocity rather
+than wheel torque, this is a sliding-mode-inspired *outer-loop* controller,
+not a strict torque-input SMC derivation from the full rigid-body equations.
+That matches both the repo contract and the intended Pybricks deployment path.
 """
 
 from __future__ import annotations
+
+import math
 
 from .BalanceState import BalanceState
 from .ControlInterfaces import ControlMode, ControlOutput
 from .ControllerBase import ControllerBase
 from .RobotConfig import RobotConfig
+from .Saturation import SaturateSymmetric
 
 
 class NonLinearController(ControllerBase):
-    """Documented placeholder for the future nonlinear balancing law.
-
-    The class is honest about being a placeholder. :meth:`Compute` returns a
-    zero command and :meth:`IsPlaceholder` returns ``True``. Production code
-    can check :meth:`IsPlaceholder` and refuse to deploy if needed.
-    """
+    """Sliding-mode-inspired velocity controller for pure sagittal balance."""
 
     def __init__(self, config: RobotConfig) -> None:
         super().__init__(config)
-        # Future state. Initialized so that the placeholder runs without
-        # surprises and so that subclasses can extend it without rewriting
-        # the constructor.
-        self._lastTimestamp: float = 0.0
-        # TODO: load P, K, and any auxiliary matrices here once the design
-        # is in place. Suggested layout:
-        #     self._gainMatrix: List[List[float]] = ...
-        #     self._lyapunovMatrix: List[List[float]] = ...
+        self._maxWheelRate = config.control.maxWheelRate
+
+        # Starter gains are kept local so the first real controller can land
+        # without widening the config/generation surface. They are chosen so
+        # tilt stabilization dominates wheel centering, matching the project
+        # priority order and keeping the hot path MicroPython-friendly.
+        #
+        # Tuning priorities:
+        # - If the robot cannot catch itself, increase kTheta, kThetaDot,
+        #   and/or kSigma.
+        # - If it oscillates, increase kThetaDot and/or widen epsilon.
+        # - If it balances but slowly drives away, increase kPhi or lambdaPhi.
+        # - If commands chatter, widen epsilon and possibly reduce kSigma.
+        self._lambdaTheta = 6.0
+        self._lambdaPhiDot = 0.05
+        self._lambdaPhi = 0.01
+
+        # Positive tilt means leaning forward, and positive wheel velocity is
+        # the corrective action in this repo's sign convention. That makes the
+        # tilt terms positive here, while phi/phiDot terms oppose drift.
+        self._kTheta = 30.0
+        self._kThetaDot = 7.5
+        self._kPhi = 1.5
+        self._kPhiDot = 3.0
+        self._kSigma = 2.5
+        self._boundaryLayerWidth = 0.2
+
+        self._lastTimestamp = 0.0
+        self._lastSlidingVariable = 0.0
+        self._lastCommand = 0.0
 
     def IsPlaceholder(self) -> bool:
-        """Return ``True`` while the controller is a placeholder.
+        """Report that the controller now contains a real balancing law."""
+        return False
 
-        Set this to ``False`` only after the body of :meth:`Compute` has
-        been replaced with a real nonlinear control law.
-        """
-        return True
+    def _ComputeSlidingVariable(
+        self,
+        theta: float,
+        thetaDot: float,
+        phi: float,
+        phiDot: float,
+    ) -> float:
+        return (
+            thetaDot
+            + self._lambdaTheta * theta
+            + self._lambdaPhiDot * phiDot
+            + self._lambdaPhi * phi
+        )
+
+    def _Sat(self, value: float) -> float:
+        """Piecewise-linear saturation used for the switching term."""
+        if not math.isfinite(value):
+            return 0.0
+        if value > 1.0:
+            return 1.0
+        if value < -1.0:
+            return -1.0
+        return value
+
+    def _ComputeVelocityCommand(
+        self,
+        theta: float,
+        thetaDot: float,
+        phi: float,
+        phiDot: float,
+    ) -> tuple[float, float]:
+        sigma = self._ComputeSlidingVariable(theta, thetaDot, phi, phiDot)
+
+        # The linear part gives smooth local stabilization. The boundary-layer
+        # term adds robustness against model mismatch and unmodeled bias
+        # without the hard switching that would chatter on LEGO hardware.
+        linearCommand = (
+            self._kTheta * theta
+            + self._kThetaDot * thetaDot
+            - self._kPhi * phi
+            - self._kPhiDot * phiDot
+        )
+        switchingCommand = self._kSigma * self._Sat(sigma / self._boundaryLayerWidth)
+        return linearCommand + switchingCommand, sigma
+
+    def _ClampCommand(self, command: float) -> float:
+        return SaturateSymmetric(command, self._maxWheelRate)
 
     def Compute(self, state: BalanceState) -> ControlOutput:
-        """Compute one control step.
+        """Compute one bounded symmetric wheel-velocity command.
 
-        TODO: replace this body with the real nonlinear control law.
-
-        For now this returns a zero velocity command in the
-        :class:`ControlMode.Velocity` mode. The signature, units, and
-        return type are the contract that the future implementation must
-        respect. Doing so means swapping the controller is a one line
-        change in the application code.
-
-        Args:
-            state: Latest state estimate from :class:`StateEstimator`.
-
-        Returns:
-            A :class:`ControlOutput` containing left and right wheel
-            commands.
+        Invalid states stop immediately. Valid states are mapped to the
+        sliding variable ``sigma`` and then to a saturated wheel-rate command.
         """
         if not state.valid:
             return ControlOutput.Stop(mode=ControlMode.Velocity, timestamp=state.timestamp)
+
+        theta = state.theta
+        thetaDot = state.thetaDot
+        phi = state.phi
+        phiDot = state.phiDot
+
+        if not all(math.isfinite(value) for value in (theta, thetaDot, phi, phiDot)):
+            return ControlOutput.Stop(mode=ControlMode.Velocity, timestamp=state.timestamp)
+
+        command, sigma = self._ComputeVelocityCommand(theta, thetaDot, phi, phiDot)
+        boundedCommand = self._ClampCommand(command)
+
         self._lastTimestamp = state.timestamp
-        # Placeholder body. The real implementation goes here.
+        self._lastSlidingVariable = sigma
+        self._lastCommand = boundedCommand
+
         return ControlOutput(
-            leftCommand=0.0,
-            rightCommand=0.0,
+            leftCommand=boundedCommand,
+            rightCommand=boundedCommand,
             mode=ControlMode.Velocity,
             timestamp=state.timestamp,
         )
 
     def Reset(self) -> None:
-        """Reset internal state. Override in subclasses with integrators."""
+        """Reset internal bookkeeping used by the controller."""
         self._lastTimestamp = 0.0
+        self._lastSlidingVariable = 0.0
+        self._lastCommand = 0.0

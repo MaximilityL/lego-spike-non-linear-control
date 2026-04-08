@@ -14,9 +14,9 @@ class ChassisConfig:
     def __init__(self):
         self.wheelRadius = 0.0285
         self.wheelBase = 0.08
-        self.bodyMass = 0.5
-        self.bodyHeightCoM = 0.08
-        self.bodyInertia = 0.002
+        self.bodyMass = 0.4
+        self.bodyHeightCoM = 0.04
+        self.bodyInertia = 0.006
 
 
 class MotorsConfig:
@@ -62,7 +62,7 @@ class DriveConfig:
         self.stopDurationMs = 50
         self.driveDurationMs = 5000
         self.testSpeed = 17.44
-        self.maxTiltForMotion = 2.0
+        self.maxTiltForMotion = 0.8726646259971648
 
 
 class LoggingConfig:

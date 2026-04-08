@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-04-08
+
+### Changed
+- Replaced the balancing-controller placeholder with a real sagittal
+  balancing law in `NonLinearController`: a velocity-mode,
+  sliding-mode-inspired outer-loop controller acting on the implemented state
+  `[theta, thetaDot, phi, phiDot]`.
+- Defined the controller logic around a composite sliding variable
+  `sigma = thetaDot + lambdaTheta*theta + lambdaPhiDot*phiDot + lambdaPhi*phi`
+  and a bounded command that combines smooth state feedback with a
+  boundary-layer saturation term instead of a discontinuous `sign(...)`
+  switch, reducing jitter on sampled LEGO hardware.
+- Locked the controller contract around practical runtime behavior: invalid
+  states stop immediately, valid commands preserve timestamps, left and right
+  wheel commands remain symmetric, positive forward lean commands positive
+  forward wheel motion, and controller output is intentionally clamped to
+  `control.maxWheelRate` before reaching the safety monitor.
+- Upgraded the controller tests from placeholder checks to real logic checks,
+  covering invalid-state stop behavior, symmetry, output saturation, reset
+  semantics, placeholder status, and forward-lean sign sanity.
+- Brought the typed config defaults, shipped YAML, generated
+  `HubDriveSmokeRuntime`, and related tests back into agreement on the
+  hardware-validated chassis values, wheel-rate limit, drive test speed, and
+  pre-balancing motion gate so the full desktop test suite reflects the
+  current repo truth.
+
 ## [1.1.0] - 2026-04-08
 
 ### Added

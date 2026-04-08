@@ -3,16 +3,15 @@
 Desktop side simulation stub. Wires up:
 
 - :class:`LegoBalance.MockAdapters.MockHub` as the toy plant
-- :class:`LegoBalance.StateEstimator` as the (currently pass through) estimator
-- :class:`LegoBalance.NonLinearController` as the (currently placeholder) controller
+- :class:`LegoBalance.StateEstimator` as the estimator
+- :class:`LegoBalance.NonLinearController` as the balancing controller
 - :class:`LegoBalance.SafetyMonitor` as the safety filter
 - :class:`LegoBalance.DataLogger` as the recorder
 
 Runs a few hundred iterations and prints a short summary. The point is not
-to balance anything (the controller is a placeholder). The point is to
-exercise every API on the path from sensors to motors so that the next
-person to plug in a real controller has confidence that the wiring is
-correct.
+to prove a real hardware design. The mock plant is intentionally crude. The
+point is to exercise every API on the path from sensors to motors so the
+controller can be validated for wiring and interface regressions.
 
 Run with:
 
@@ -126,9 +125,9 @@ def Main() -> int:
     logger.WriteCsv(csvPath)
     print(f"log written to    : {csvPath}")
     print()
-    print("This run used a placeholder controller. The body of NonLinearController.Compute")
-    print("returns zero. The expected outcome is that the toy plant tips over because")
-    print("nothing is acting on it. That is the correct, honest behavior for a scaffold.")
+    print("The controller is active, but the plant is still a toy model.")
+    print("Use this run as an interface check and a coarse sanity test, not as")
+    print("proof that hardware tuning is finished.")
     return 0
 
 
