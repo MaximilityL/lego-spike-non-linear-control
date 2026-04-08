@@ -74,9 +74,10 @@ To test the package-backed drive smoke path instead, run:
 python scripts/PlotHubPackageDriveSmoke.py
 ```
 
-This launches `src/HubPackageDriveSmoke.py`, which imports the hub-safe
-`LegoBalance.HubDriveSmokeRuntime` package module. The entrypoint lives under `src/`
-because `pybricksdev` resolves local package imports relative to the uploaded script.
+This launches `src/HubPackageDriveSmoke.py`, which imports the shared
+`LegoBalance.StateEstimator`, `DriveCommandController`, and `SafetyMonitor` modules on
+the hub. The entrypoint lives under `src/` because `pybricksdev` resolves local package
+imports relative to the uploaded script.
 
 You can rename your hub from the gear icon in `code.pybricks.com`.
 
@@ -114,8 +115,9 @@ Log out and back in.
 Most Pybricks programs here should only import from `pybricks.*`. If you accidentally
 import the normal desktop `LegoBalance` modules, `yaml`, `dataclasses`, or another
 desktop package, the program can fail on the hub. The exception is
-`src/HubPackageDriveSmoke.py`, which imports only the hub-safe
-`LegoBalance.HubDriveSmokeRuntime` subset.
+`src/HubPackageDriveSmoke.py`, which imports the shared estimator/controller/safety
+modules after keeping that import path MicroPython-safe. Its helper
+`LegoBalance.HubDriveSmokeRuntime` supplies only default config values.
 
 ## 3. Why The Hub Side Scripts Are Self Contained
 

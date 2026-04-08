@@ -7,8 +7,6 @@ here as its own module rather than being inlined into the controller.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
-
 
 def SaturateScalar(value: float, lowerBound: float, upperBound: float) -> float:
     """Clamp a scalar to the closed interval ``[lowerBound, upperBound]``.
@@ -38,11 +36,7 @@ def SaturateSymmetric(value: float, magnitudeBound: float) -> float:
     return SaturateScalar(value, -magnitudeBound, magnitudeBound)
 
 
-def SaturateVector(
-    values: Iterable[float],
-    lowerBounds: Iterable[float],
-    upperBounds: Iterable[float],
-) -> list[float]:
+def SaturateVector(values, lowerBounds, upperBounds) -> list[float]:
     """Component wise saturation of a vector.
 
     All three iterables must have the same length. Returned as a list so the

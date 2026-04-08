@@ -54,13 +54,13 @@ This project is split into two halves on purpose.
 - **Hub side (`hub/`, plus the package smoke entrypoint under `src/`).** Tiny Pybricks
   programs for the real SPIKE hub. Most are self contained and import only from
   `pybricks.*`. `src/HubPackageDriveSmoke.py` is the deliberate exception: it imports the
-  hub-safe `LegoBalance.HubDriveSmokeRuntime` package module so you can test the package
+  shared `LegoBalance` estimator, controller, and safety modules so you can test package
   logic on hardware.
 - **Desktop side (`src/LegoBalance/`).** A normal Python package with type hints,
   dataclasses, tests, and abstract interfaces. This is where the controller, estimator,
   configuration, simulation, and tests live. Most of this does not run on the hub
-  directly; hub code can only import modules kept MicroPython-safe, like
-  `HubDriveSmokeRuntime`.
+  directly; hub code can only import modules kept MicroPython-safe, like the smoke-test
+  estimator/controller path and `HubDriveSmokeRuntime`.
 
 This split is the most important architectural decision in the repo. Read it twice. It is
 what lets you write tested, maintainable Python on your laptop while still being honest
@@ -89,7 +89,7 @@ lego-spike-invrted-pendulum/
 │   ├── HubPackageDriveSmoke.py Package-backed Pybricks drive smoke entrypoint
 │   └── LegoBalance/           Desktop side Python package
 │       ├── __init__.py
-│       ├── HubDriveSmokeRuntime.py Hub-safe package runtime for hardware smoke
+│       ├── HubDriveSmokeRuntime.py Hub-safe default config for hardware smoke
 │       ├── HubInterface.py
 │       ├── MotorInterface.py
 │       ├── ImuInterface.py
@@ -374,7 +374,7 @@ pDot  = r * phiDot
 These are exposed as `BalanceState.LinearPosition(wheelRadius)` /
 `BalanceState.LinearVelocity(wheelRadius)` and as `StateEstimator.LinearPosition(state)` /
 `StateEstimator.LinearVelocity(state)`. They are intentionally not stored on the state
-dataclass so that the core estimator stays radius free.
+object so that the core estimator stays radius free.
 
 ### Why phi and phiDot are the implemented state at this stage
 
@@ -429,9 +429,9 @@ python scripts/PlotHubPackageDriveSmoke.py
 ```
 
 That plotter runs `src/HubPackageDriveSmoke.py`, which imports
-`LegoBalance.HubDriveSmokeRuntime` on the hub. The runtime is a MicroPython-safe package
-subset kept aligned with the desktop `StateEstimator`, `DriveCommandController`, and
-`SafetyMonitor` by tests.
+`LegoBalance.StateEstimator`, `LegoBalance.DriveCommandController`, and
+`LegoBalance.SafetyMonitor` on the hub. `LegoBalance.HubDriveSmokeRuntime` only supplies a
+MicroPython-safe default config, kept aligned with the desktop config by tests.
 
 > **Safety:** the drive smoke flow commands wheel motion. **Block the wheels or hold the
 > robot in your hand** the first time you run it. The default magnitude has been validated

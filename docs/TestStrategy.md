@@ -15,7 +15,7 @@ Coverage:
 - `RobotConfig` loads, validates, deep merges overrides.
 - `Saturation` clamps values, both scalar and componentwise.
 - `Units` converts radians, degrees, mm/s, m/s correctly.
-- `BalanceState` is a well behaved dataclass with a stable shape.
+- `BalanceState` is a well behaved state container with a stable shape.
 - `StateEstimator` returns a `BalanceState` of the right shape regardless of input.
 - `LyapunovController` returns a `ControlOutput` and reports its placeholder status.
 - `SafetyMonitor` trips on tilt over the limit, on watchdog timeout, on excessive

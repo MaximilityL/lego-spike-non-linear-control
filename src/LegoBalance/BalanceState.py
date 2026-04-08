@@ -1,4 +1,4 @@
-"""BalanceState dataclass.
+"""BalanceState container.
 
 The single canonical state vector that the rest of the project speaks. Every
 estimator returns one. Every controller consumes one. Adding a new field here
@@ -17,7 +17,7 @@ Naming convention used in this project (pre balancing phase):
 * ``phiDot`` is the mean wheel rotation rate in radians per second.
 
 The pure translational state ``p`` (linear distance in meters) and ``pDot``
-(linear velocity in meters per second) is *not* stored on the dataclass.
+(linear velocity in meters per second) is *not* stored on the state object.
 ``p`` and ``pDot`` can always be derived from ``phi`` and ``phiDot`` if a
 reliable wheel radius is available, via the helper methods
 :meth:`LinearPosition` and :meth:`LinearVelocity`. They are intentionally a
@@ -28,10 +28,7 @@ be finalized.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 
-
-@dataclass
 class BalanceState:
     """Estimated state of the two wheel inverted pendulum.
 
@@ -52,16 +49,25 @@ class BalanceState:
             state.
     """
 
-    tilt: float = 0.0
-    tiltRate: float = 0.0
-    phi: float = 0.0
-    phiDot: float = 0.0
-    timestamp: float = 0.0
-    valid: bool = False
+    def __init__(
+        self,
+        tilt: float = 0.0,
+        tiltRate: float = 0.0,
+        phi: float = 0.0,
+        phiDot: float = 0.0,
+        timestamp: float = 0.0,
+        valid: bool = False,
+    ) -> None:
+        self.tilt = tilt
+        self.tiltRate = tiltRate
+        self.phi = phi
+        self.phiDot = phiDot
+        self.timestamp = timestamp
+        self.valid = valid
 
     # Convenience aliases so callers that prefer the math notation can use
     # ``state.theta`` / ``state.thetaDot`` instead of ``state.tilt`` /
-    # ``state.tiltRate``. They are read only views; the dataclass fields
+    # ``state.tiltRate``. They are read only views; the state attributes
     # remain the single source of truth.
     @property
     def theta(self) -> float:
@@ -127,7 +133,6 @@ class BalanceState:
         return wheelRadius * self.phiDot
 
 
-@dataclass
 class StateBounds:
     """Optional per field bounds used by the safety monitor.
 
@@ -135,7 +140,14 @@ class StateBounds:
     cannot drift apart.
     """
 
-    tiltMax: float = 1.0
-    tiltRateMax: float = 10.0
-    phiDotMax: float = 17.453292519943295
-    additional: list[str] = field(default_factory=list)
+    def __init__(
+        self,
+        tiltMax: float = 1.0,
+        tiltRateMax: float = 10.0,
+        phiDotMax: float = 17.453292519943295,
+        additional: list[str] | None = None,
+    ) -> None:
+        self.tiltMax = tiltMax
+        self.tiltRateMax = tiltRateMax
+        self.phiDotMax = phiDotMax
+        self.additional = [] if additional is None else list(additional)

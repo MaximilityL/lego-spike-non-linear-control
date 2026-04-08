@@ -2,11 +2,14 @@
 
 Package-backed variant of ``hub/HubDriveSmoke.py`` for Pybricks.
 
-This file intentionally imports the hub-safe ``LegoBalance`` runtime module
-instead of carrying the estimator/controller/safety logic inline. It is placed
-under ``src/`` rather than ``hub/`` because ``pybricksdev`` resolves multi-file
-imports relative to the uploaded entrypoint directory. From here it can find
-``src/LegoBalance/HubDriveSmokeRuntime.py`` and upload both files together.
+This file intentionally imports the normal ``LegoBalance`` estimator,
+controller, safety monitor, state boundary objects, and unit conversions. The
+only special hub-side helper is ``LegoBalance.HubDriveSmokeRuntime.DefaultConfig``
+because the normal config loader reads YAML from the desktop filesystem.
+
+It is placed under ``src/`` rather than ``hub/`` because ``pybricksdev`` resolves
+multi-file imports relative to the uploaded entrypoint directory. From here it
+can find and upload the imported ``LegoBalance`` modules together.
 
 Run it through the desktop plotter:
 
@@ -23,18 +26,12 @@ from pybricks.parameters import Button, Port
 from pybricks.pupdevices import Motor
 from pybricks.tools import StopWatch, wait
 
-from LegoBalance.HubDriveSmokeRuntime import (
-    DefaultConfig,
-    DegPerSecToRadPerSec,
-    DegToRad,
-    DriveCommand,
-    DriveCommandController,
-    Measurement,
-    RadPerSecToDegPerSec,
-    RadToDeg,
-    SafetyMonitor,
-    StateEstimator,
-)
+from LegoBalance.ControlInterfaces import Measurement
+from LegoBalance.DriveCommandController import DriveCommand, DriveCommandController
+from LegoBalance.HubDriveSmokeRuntime import DefaultConfig
+from LegoBalance.SafetyMonitor import SafetyMonitor
+from LegoBalance.StateEstimator import StateEstimator
+from LegoBalance.Units import DegPerSecToRadPerSec, DegToRad, RadPerSecToDegPerSec, RadToDeg
 
 LOOP_PERIOD_MS = 20
 PRINT_EVERY_N = 1
@@ -96,7 +93,10 @@ def PrintBanner(config):
     print(" Press the center button at any time to stop cleanly.")
     print("============================================================")
     print(" Package import:")
-    print("   from LegoBalance.HubDriveSmokeRuntime import ...")
+    print("   from LegoBalance.StateEstimator import StateEstimator")
+    print("   from LegoBalance.DriveCommandController import DriveCommandController")
+    print("   from LegoBalance.SafetyMonitor import SafetyMonitor")
+    print("   from LegoBalance.HubDriveSmokeRuntime import DefaultConfig")
     print(" Config:")
     print(f"   loop period         : {LOOP_PERIOD_MS} ms")
     print(f"   telemetry every     : {PRINT_EVERY_N} loop(s)")

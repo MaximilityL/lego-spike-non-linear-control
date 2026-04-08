@@ -33,15 +33,18 @@ plug into. Swapping :class:`DriveCommandController` for
 
 from __future__ import annotations
 
-from enum import Enum
-
 from .BalanceState import BalanceState
 from .ControlInterfaces import ControlMode, ControlOutput
 from .ControllerBase import ControllerBase
-from .RobotConfig import RobotConfig
 
 
-class DriveCommand(str, Enum):
+class _EnumValue(str):
+    @property
+    def value(self) -> str:
+        return str(self)
+
+
+class DriveCommand:
     """High level drive intent for the pre balancing motion smoke tests.
 
     These are intentionally coarse. They map to a fixed magnitude wheel
@@ -50,9 +53,9 @@ class DriveCommand(str, Enum):
     ``phi``).
     """
 
-    Stop = "stop"
-    Forward = "forward"
-    Backward = "backward"
+    Stop = _EnumValue("stop")
+    Forward = _EnumValue("forward")
+    Backward = _EnumValue("backward")
 
 
 class DriveCommandController(ControllerBase):
@@ -62,7 +65,7 @@ class DriveCommandController(ControllerBase):
         config: Reference to the :class:`RobotConfig`. Read only.
     """
 
-    def __init__(self, config: RobotConfig) -> None:
+    def __init__(self, config: object) -> None:
         super().__init__(config)
         self._command: DriveCommand = DriveCommand.Stop
         self._driveSpeed = float(config.drive.testSpeed)
@@ -77,7 +80,10 @@ class DriveCommandController(ControllerBase):
     # ----- Public command surface. -----
     def SetCommand(self, command: DriveCommand) -> None:
         """Set the next drive command. Takes effect on the next :meth:`Compute`."""
-        if not isinstance(command, DriveCommand):
+        if not any(
+            command is allowed
+            for allowed in (DriveCommand.Stop, DriveCommand.Forward, DriveCommand.Backward)
+        ):
             raise TypeError(f"command must be a DriveCommand, got {type(command).__name__}")
         self._command = command
 

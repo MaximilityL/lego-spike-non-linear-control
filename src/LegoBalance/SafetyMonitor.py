@@ -10,15 +10,11 @@ Both are true.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-
 from .BalanceState import BalanceState
 from .ControlInterfaces import ControlMode, ControlOutput
-from .RobotConfig import RobotConfig
 from .Saturation import SaturateSymmetric
 
 
-@dataclass
 class SafetyStatus:
     """Reports the most recent safety decision.
 
@@ -30,10 +26,17 @@ class SafetyStatus:
         lastUpdateTime: Time of the most recent update for watchdog tracking.
     """
 
-    armed: bool = False
-    tripped: bool = False
-    reasons: list[str] = field(default_factory=list)
-    lastUpdateTime: float = 0.0
+    def __init__(
+        self,
+        armed: bool = False,
+        tripped: bool = False,
+        reasons: list[str] | None = None,
+        lastUpdateTime: float = 0.0,
+    ) -> None:
+        self.armed = armed
+        self.tripped = tripped
+        self.reasons = [] if reasons is None else list(reasons)
+        self.lastUpdateTime = lastUpdateTime
 
 
 class SafetyMonitor:
@@ -44,7 +47,7 @@ class SafetyMonitor:
     be passed through to the motors.
     """
 
-    def __init__(self, config: RobotConfig) -> None:
+    def __init__(self, config: object) -> None:
         self.config = config
         self._status = SafetyStatus()
         self._maxTilt = config.control.maxTilt

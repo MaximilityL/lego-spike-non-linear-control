@@ -13,11 +13,12 @@ There are two distinct execution environments.
 - **Hub side.** MicroPython under Pybricks, running on the SPIKE Prime hub. Most hub
   scripts live under `hub/` and are self contained. The package-backed drive smoke
   entrypoint lives at `src/HubPackageDriveSmoke.py` so `pybricksdev` can upload the
-  hub-safe `LegoBalance.HubDriveSmokeRuntime` module beside it.
+  shared estimator/controller/safety modules beside it. Its hub-specific helper only
+  supplies default config values.
 
 The desktop side is where you design, test, and document. The hub side is where you
 actually run code. The normal path keeps the two in sync by convention; the package smoke
-path imports only the MicroPython-safe runtime subset.
+path imports the same estimator/controller/safety logic used on the desktop.
 
 ## 2. The Module Layers
 
@@ -55,9 +56,9 @@ path imports only the MicroPython-safe runtime subset.
 ## 3. Data Flow For A Single Control Step
 
 1. Each subsystem polls the `HubInterface` for fresh measurements.
-2. Measurements are wrapped in a `Measurement` dataclass and handed to the
+2. Measurements are wrapped in a `Measurement` object and handed to the
    `StateEstimator`.
-3. The estimator returns a `BalanceState` dataclass containing tilt, tilt rate, wheel
+3. The estimator returns a `BalanceState` object containing tilt, tilt rate, wheel
    position, and wheel velocity.
 4. The `Controller` consumes the `BalanceState` and returns a `ControlOutput` containing
    the wheel torque or wheel rate command.
@@ -80,7 +81,8 @@ Abstract interfaces make all of this trivial. The desktop code never imports fro
 `pybricks.*`. It always talks through `HubInterface`, `MotorInterface`, and
 `ImuInterface`. In tests we inject mocks. On the hub, the equivalent functions are
 usually implemented inline against the real Pybricks API in scripts under `hub/`; the
-package-backed smoke test imports the hub-safe runtime subset instead.
+package-backed smoke test imports the shared `LegoBalance` estimator/controller/safety
+logic instead.
 
 ## 5. Why Not Use One Big Class
 

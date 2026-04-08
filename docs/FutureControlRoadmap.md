@@ -111,9 +111,9 @@ desktop, against `examples/ClosedLoopSimulation.py`, before any hub deployment.
 - **Safety.** `SafetyMonitor.Check(state, control)` is already wired and will gate the
   command before it reaches the motors.
 - **Deployment.** Once the controller works in `ClosedLoopSimulation.py`, either copy the
-  math into a single self contained Pybricks program in `hub/` or move the hub-safe subset
-  into a package runtime module like `HubDriveSmokeRuntime`. Keep the function bodies
-  identical across the desktop and hub paths.
+  math into a single self contained Pybricks program in `hub/` or keep the shared
+  estimator/controller path MicroPython-safe enough for a package-backed entrypoint like
+  `HubPackageDriveSmoke.py`.
 
 ## 5. What Is Out Of Scope For This Repo
 

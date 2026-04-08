@@ -1,16 +1,19 @@
-"""Shared dataclasses and enums used at the controller boundary.
+"""Shared data containers and command values used at the controller boundary.
 
-These are deliberately small and frozen so they are safe to log, copy, and
-pass between threads if you ever need to.
+These are deliberately small so they are safe to log, copy, and pass between
+threads if you ever need to.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from enum import Enum
+
+class _EnumValue(str):
+    @property
+    def value(self) -> str:
+        return str(self)
 
 
-class ControlMode(str, Enum):
+class ControlMode:
     """Which kind of motor command the controller is producing.
 
     ``Velocity`` is the easiest to bring up because Pybricks already
@@ -20,12 +23,10 @@ class ControlMode(str, Enum):
     proxy.
     """
 
-    Velocity = "velocity"
-    Torque = "torque"
-    DutyCycle = "duty"
+    Velocity = _EnumValue("velocity")
+    Torque = _EnumValue("torque")
+    DutyCycle = _EnumValue("duty")
 
-
-@dataclass(frozen=True)
 class ControlOutput:
     """One step of controller output.
 
@@ -41,10 +42,17 @@ class ControlOutput:
         timestamp: Time at which the controller produced this output.
     """
 
-    leftCommand: float
-    rightCommand: float
-    mode: ControlMode
-    timestamp: float = 0.0
+    def __init__(
+        self,
+        leftCommand: float,
+        rightCommand: float,
+        mode: ControlMode,
+        timestamp: float = 0.0,
+    ) -> None:
+        self.leftCommand = leftCommand
+        self.rightCommand = rightCommand
+        self.mode = mode
+        self.timestamp = timestamp
 
     @staticmethod
     def Stop(mode: ControlMode = ControlMode.Velocity, timestamp: float = 0.0) -> ControlOutput:
@@ -56,7 +64,6 @@ class ControlOutput:
         return ControlOutput(leftCommand=0.0, rightCommand=0.0, mode=mode, timestamp=timestamp)
 
 
-@dataclass(frozen=True)
 class Measurement:
     """Raw measurement bundle handed to the estimator.
 
@@ -64,11 +71,22 @@ class Measurement:
     Pybricks units happen in the adapter, not here.
     """
 
-    tiltAngle: float
-    tiltRate: float
-    leftWheelAngle: float
-    rightWheelAngle: float
-    leftWheelRate: float
-    rightWheelRate: float
-    timestamp: float
-    valid: bool = True
+    def __init__(
+        self,
+        tiltAngle: float,
+        tiltRate: float,
+        leftWheelAngle: float,
+        rightWheelAngle: float,
+        leftWheelRate: float,
+        rightWheelRate: float,
+        timestamp: float,
+        valid: bool = True,
+    ) -> None:
+        self.tiltAngle = tiltAngle
+        self.tiltRate = tiltRate
+        self.leftWheelAngle = leftWheelAngle
+        self.rightWheelAngle = rightWheelAngle
+        self.leftWheelRate = leftWheelRate
+        self.rightWheelRate = rightWheelRate
+        self.timestamp = timestamp
+        self.valid = valid

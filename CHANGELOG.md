@@ -8,15 +8,15 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 ## [1.0.3] - 2026-04-08
 
 ### Added
-- Added a package-backed hardware smoke path that exercises a hub-safe `LegoBalance`
-  runtime on the SPIKE hub instead of duplicating all estimator, drive-command, safety,
-  unit-conversion, and config logic inside a standalone hub script.
+- Added a package-backed hardware smoke path that exercises the shared
+  `LegoBalance.StateEstimator`, `DriveCommandController`, and `SafetyMonitor` modules on
+  the SPIKE hub instead of duplicating that logic inside a standalone hub script.
 - Added a laptop plotter for the package-backed smoke run that reuses the existing
   drive-smoke telemetry parser while loading the plotted drive gate from the desktop
   `LegoBalance` config.
-- Added parity tests that keep the hub-safe runtime aligned with the desktop
-  `StateEstimator`, `DriveCommandController`, `SafetyMonitor`, and hardware-validated
-  signs/constants.
+- Added a hub-safe default config helper and parity tests that keep its hardware-validated
+  signs/constants aligned with the desktop config while proving the shared estimator,
+  controller, and safety monitor accept it.
 
 ### Changed
 - Kept the standalone `hub/HubDriveSmoke.py` as the hardware-verified reference path,
@@ -24,6 +24,9 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   exception for testing reusable package logic on the real robot.
 - Generalized the drive-smoke plotting title so both standalone and package-backed runs
   can share the same diagnostic plot logic without changing the telemetry contract.
+- Removed desktop-only dataclass, enum, and abstract-base-class runtime dependencies from
+  the shared state/controller boundary modules so Pybricks can import the same estimator
+  and drive controller used on the desktop.
 
 ## [1.0.2] - 2026-04-07
 

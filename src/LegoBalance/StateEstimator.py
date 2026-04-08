@@ -38,7 +38,6 @@ from __future__ import annotations
 
 from .BalanceState import BalanceState
 from .ControlInterfaces import Measurement
-from .RobotConfig import RobotConfig
 
 
 class StateEstimator:
@@ -53,7 +52,7 @@ class StateEstimator:
             from.
     """
 
-    def __init__(self, config: RobotConfig) -> None:
+    def __init__(self, config: object) -> None:
         self.config = config
         self.alpha = config.estimator.alpha
         self._lastTimestamp: float | None = None
