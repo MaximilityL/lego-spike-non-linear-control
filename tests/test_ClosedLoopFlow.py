@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from LegoBalance.ControlInterfaces import Measurement
 from LegoBalance.DataLogger import DataLogger
-from LegoBalance.LyapunovController import LyapunovController
 from LegoBalance.MockAdapters import MockHub
+from LegoBalance.NonLinearController import NonLinearController
 from LegoBalance.RobotConfig import LoadConfig
 from LegoBalance.SafetyMonitor import SafetyMonitor
 from LegoBalance.StateEstimator import StateEstimator
@@ -20,7 +20,7 @@ def test_PipelineRunsForFewIterationsWithoutErrors():
     config = LoadConfig(applyLocalOverride=False)
     hub = MockHub()
     estimator = StateEstimator(config)
-    controller = LyapunovController(config)
+    controller = NonLinearController(config)
     safety = SafetyMonitor(config)
     logger = DataLogger(bufferSize=64)
 

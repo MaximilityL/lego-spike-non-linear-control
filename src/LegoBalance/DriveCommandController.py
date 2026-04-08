@@ -12,7 +12,7 @@ What it does:
 * Maps that command to a symmetric left/right wheel velocity using the
   configured drive test speed.
 * Returns a :class:`ControlOutput` in the same shape that the future
-  :class:`LyapunovController` will return, so the rest of the pipeline does
+  :class:`NonLinearController` will return, so the rest of the pipeline does
   not care which controller is in front.
 
 What it does not do:
@@ -28,7 +28,7 @@ The controller still consumes the :class:`BalanceState` produced by the
 estimator (because :class:`ControllerBase.Compute` takes one), so the loop
 that uses it is exactly the loop that the future balancing controller will
 plug into. Swapping :class:`DriveCommandController` for
-:class:`LyapunovController` is a one line change in application code.
+:class:`NonLinearController` is a one line change in application code.
 """
 
 from LegoBalance.BalanceState import BalanceState

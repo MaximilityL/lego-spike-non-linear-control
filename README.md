@@ -2,9 +2,10 @@
 
 A clean, modular starter environment for building a two wheel self balancing inverted
 pendulum robot on the LEGO SPIKE Prime hub using [Pybricks](https://pybricks.com).
-The long term target is a Lyapunov based nonlinear balancing controller. This repository
-focuses on the scaffolding, bring up, and testing that comes before that controller is
-written, so that the controller can be plugged in later without rewriting the project.
+The long term target is a nonlinear balancing controller, with the first planned
+implementation based on a Lyapunov design. This repository focuses on the scaffolding,
+bring up, and testing that comes before that controller is written, so that the
+controller can be plugged in later without rewriting the project.
 
 This is intentionally a starter, not a finished controller. Every interface is documented,
 every hardware coupling point is isolated, and the simulation stub lets you exercise the
@@ -18,7 +19,7 @@ control API on a desktop before any hardware is involved.
 - Support a first time SPIKE user from "can I see the hub" all the way to
   "can I plug in a balancing controller".
 - Keep hardware specific code isolated from logic that can be tested on a laptop.
-- Be ready to host a future Lyapunov based controller for a two wheel self balancing robot.
+- Be ready to host a future nonlinear controller for a two wheel self balancing robot.
 
 ## 2. Why Pybricks
 
@@ -69,10 +70,10 @@ about what the hub can and cannot do.
 ## 4. Repository Layout
 
 ```
-lego-spike-invrted-pendulum/
+lego-spike-non-linear-control/
 ├── README.md                  Project overview and quickstart (this file)
 ├── CHANGELOG.md               Version history
-├── VERSION                    Plain text version, currently 1.0.3
+├── VERSION                    Plain text version, currently 1.1.0
 ├── pyproject.toml             Desktop side packaging and tool config
 ├── requirements.txt           Minimal runtime dependencies for desktop side
 ├── .gitignore
@@ -83,6 +84,7 @@ lego-spike-invrted-pendulum/
 │   ├── ArchitectureOverview.md
 │   ├── HardwareAssumptions.md
 │   ├── FutureControlRoadmap.md
+│   ├── NonLinearControllerDesignGuide.md
 │   ├── TestStrategy.md
 │   └── PybricksNotes.md
 ├── src/
@@ -100,7 +102,8 @@ lego-spike-invrted-pendulum/
 │       ├── BalanceState.py
 │       ├── ControlInterfaces.py
 │       ├── ControllerBase.py
-│       ├── LyapunovController.py
+│       ├── NonLinearController.py
+│       ├── LyapunovController.py Compatibility alias for older imports
 │       ├── ConnectionDiagnostics.py
 │       ├── HardwareTestRunner.py
 │       ├── DriveCommandController.py
@@ -135,7 +138,7 @@ lego-spike-invrted-pendulum/
     ├── test_Saturation.py
     ├── test_Units.py
     ├── test_StateEstimator.py
-    ├── test_LyapunovController.py
+    ├── test_NonLinearController.py
     ├── test_SafetyMonitor.py
     ├── test_BalanceState.py
     ├── test_DriveCommandController.py
@@ -151,7 +154,7 @@ shell helpers are written for `bash`).
 ### 5.1. Clone or open the project
 
 ```bash
-cd ~/maxim_env/python_env/lego-spike-invrted-pendulum
+cd /path/to/lego-spike-non-linear-control
 ```
 
 ### 5.2. Create a virtual environment and install the desktop side
@@ -310,8 +313,9 @@ common error fixes.
    same estimator + safety pipeline the future balancing controller will use. See section 14 below.
 5. **Open loop motor characterization.** Use `HubMotorTest.py` to map duty to angular
    velocity. Capture data with `DataLogger`.
-6. **Outer loop balancing controller.** Replace the body of `LyapunovController.Compute`
-   with a real Lyapunov based control law. See `docs/FutureControlRoadmap.md`.
+6. **Outer loop balancing controller.** Replace the body of `NonLinearController.Compute`
+   with a real balancing law. The first intended implementation is Lyapunov based. See
+   `docs/FutureControlRoadmap.md` and `docs/NonLinearControllerDesignGuide.md`.
 7. **On hub deployment.** Prefer a single self contained Pybricks script when you want
    the most reliable upload path. Use the package-backed smoke path when you explicitly
    want to test a hub-safe `LegoBalance` module on the real hub.
@@ -320,18 +324,19 @@ common error fixes.
 
 - **New controller.** Subclass `ControllerBase` and implement `Compute(state) -> ControlOutput`.
   Register it from your application code. The simulation stub
-  (`examples/ClosedLoopSimulation.py`) shows how to swap controllers in one line.
+  (`examples/ClosedLoopSimulation.py`) shows how to swap controllers in one line. The
+  handoff doc for the balancing controller lives in `docs/NonLinearControllerDesignGuide.md`.
 - **New sensor.** Add a new abstract interface under `src/LegoBalance/` mirroring
   `ImuInterface`. Provide a mock implementation for tests and a hub side adapter for the
   Pybricks API.
-- **New estimator.** Subclass nothing, just provide an `Update(measurements, dt)` method
-  that returns a `BalanceState`. The simulation stub treats the estimator as a plain
-  callable so any object with the right method signature works.
+- **New estimator.** Subclass nothing, just provide an `Update(measurement)` method that
+  returns a `BalanceState`. The simulation stub treats the estimator as a plain callable
+  so any object with the right method signature works.
 
 ## 12. Important Honest Caveats
 
 - This release does not include any tested control law for balancing. The
-  `LyapunovController` is a documented placeholder.
+  `NonLinearController` is a documented placeholder.
 - The hub side scripts under `hub/` are minimal Pybricks programs. The package-backed
   smoke entrypoint lives under `src/` only so `pybricksdev` can find and upload the
   `LegoBalance` runtime module beside it.
@@ -383,7 +388,7 @@ object so that the core estimator stays radius free.
 - They avoid an early dependence on a wheel radius that may not be finalized.
 - They reduce avoidable modeling assumptions before the balancing phase begins.
 
-The future Lyapunov controller can still consume this state. It can either use `phi`
+The future nonlinear controller can still consume this state. It can either use `phi`
 directly when shaping wheel rotation, or convert to `p` via the wheel radius when it
 needs a linear translation cost.
 
@@ -436,7 +441,7 @@ That plotter runs `src/HubPackageDriveSmoke.py`, which imports
 
 > **Safety:** the drive smoke flow commands wheel motion. **Block the wheels or hold the
 > robot in your hand** the first time you run it. The default magnitude has been validated
-> on the real build, but the robot will still try to roll. The Lyapunov balancing
+> on the real build, but the robot will still try to roll. The nonlinear balancing
 > controller is not yet implemented, so the robot is **not** balancing while this script runs.
 
 ### What is intentionally NOT implemented yet
@@ -444,7 +449,7 @@ That plotter runs `src/HubPackageDriveSmoke.py`, which imports
 - A complementary filter or Kalman filter inside `StateEstimator`. The hardware sensors
   are accurate enough at this stage; a future revision will drop a filter into the same
   `Update` method without changing the public interface.
-- A balancing controller. `LyapunovController` is still a documented placeholder and
-  `LyapunovController.IsPlaceholder()` still returns `True`.
+- A balancing controller. `NonLinearController` is still a documented placeholder and
+  `NonLinearController.IsPlaceholder()` still returns `True`.
 - Online estimation of the upright zero offset or gyro bias. They are loaded from the
   config and assumed correct.

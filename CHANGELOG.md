@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-04-08
+
+### Added
+- Added `NonLinearController` as the canonical balancing-controller module and
+  preserved `LyapunovController` as a compatibility alias so existing imports
+  still work during the transition.
+- Added `docs/NonLinearControllerDesignGuide.md` as a controller handoff
+  document describing the control boundary, the expected state estimate,
+  command conventions, and how the controller is meant to interact with the
+  estimator, safety monitor, and motor path.
+
+### Changed
+- Reframed the balancing-controller API around the implemented runtime logic:
+  `Measurement -> StateEstimator.Update -> NonLinearController.Compute ->
+  SafetyMonitor.Check -> motor command`.
+- Updated the architecture, roadmap, test-strategy, hardware, Pybricks, and
+  top-level docs so they describe the actual implemented state
+  `[theta, thetaDot, phi, phiDot]`, the derived `p` / `pDot` view, and the
+  controller/chassis sign conventions instead of leaving the controller as an
+  abstract future placeholder.
+- Switched the desktop closed-loop simulation and controller-facing tests to
+  the new `NonLinearController` name while keeping behavior unchanged: the
+  controller remains an explicit placeholder that returns zero commands until a
+  real balancing law is implemented.
+
 ## [1.0.4] - 2026-04-08
 
 ### Changed

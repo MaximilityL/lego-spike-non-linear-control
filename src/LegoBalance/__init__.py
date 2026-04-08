@@ -10,7 +10,7 @@ controller directly.
 
 import sys
 
-__version__ = "1.0.3"
+__version__ = "1.1.0"
 
 try:
     _PROPERTY_TYPE = property
@@ -37,6 +37,7 @@ else:
     from LegoBalance.HubInterface import HubInterface
     from LegoBalance.ImuInterface import ImuInterface
     from LegoBalance.LyapunovController import LyapunovController
+    from LegoBalance.NonLinearController import NonLinearController
     from LegoBalance.MotorInterface import MotorInterface
     from LegoBalance.RobotConfig import LoadConfig, RobotConfig
     from LegoBalance.SafetyMonitor import SafetyMonitor, SafetyStatus
@@ -60,6 +61,7 @@ else:
         "LyapunovController",
         "Measurement",
         "MotorInterface",
+        "NonLinearController",
         "RadPerSecToDegPerSec",
         "RadToDeg",
         "RobotConfig",

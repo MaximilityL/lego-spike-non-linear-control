@@ -4,7 +4,7 @@ Desktop side simulation stub. Wires up:
 
 - :class:`LegoBalance.MockAdapters.MockHub` as the toy plant
 - :class:`LegoBalance.StateEstimator` as the (currently pass through) estimator
-- :class:`LegoBalance.LyapunovController` as the (currently placeholder) controller
+- :class:`LegoBalance.NonLinearController` as the (currently placeholder) controller
 - :class:`LegoBalance.SafetyMonitor` as the safety filter
 - :class:`LegoBalance.DataLogger` as the recorder
 
@@ -26,8 +26,8 @@ from pathlib import Path
 
 from LegoBalance.ControlInterfaces import Measurement
 from LegoBalance.DataLogger import DataLogger
-from LegoBalance.LyapunovController import LyapunovController
 from LegoBalance.MockAdapters import MockHub
+from LegoBalance.NonLinearController import NonLinearController
 from LegoBalance.RobotConfig import LoadConfig, RobotConfig
 from LegoBalance.SafetyMonitor import SafetyMonitor
 from LegoBalance.StateEstimator import StateEstimator
@@ -68,7 +68,7 @@ def Main() -> int:
     config = LoadConfig()
     hub = MockHub()
     estimator = StateEstimator(config)
-    controller = LyapunovController(config)
+    controller = NonLinearController(config)
     safety = SafetyMonitor(config)
     logger = DataLogger(bufferSize=int(SIM_DURATION_SEC / SIM_DT_SEC) + 16)
 
@@ -126,7 +126,7 @@ def Main() -> int:
     logger.WriteCsv(csvPath)
     print(f"log written to    : {csvPath}")
     print()
-    print("This run used a placeholder controller. The body of LyapunovController.Compute")
+    print("This run used a placeholder controller. The body of NonLinearController.Compute")
     print("returns zero. The expected outcome is that the toy plant tips over because")
     print("nothing is acting on it. That is the correct, honest behavior for a scaffold.")
     return 0

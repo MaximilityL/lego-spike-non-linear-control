@@ -41,6 +41,10 @@ The single biggest source of bugs in a balancing robot is a wrong sign. Be expli
   left, z points up.
 - **Tilt.** Positive tilt means the body is leaning forward. The wheels must roll
   forward (positive wheel angular velocity in the body frame) to recover.
+- **Wheel rotation state.** Positive `phi` means the wheel base has rolled forward.
+- **Controller output sign.** Positive `ControlOutput.leftCommand` /
+  `ControlOutput.rightCommand` means forward chassis motion. Motor mounting sign flips
+  belong in config and adapter code, not inside the balancing controller.
 - **IMU axis used for tilt.** The pitch axis returned by `imu.tilt()`. The mapping from
   hub orientation to body pitch depends on whether the hub is mounted upright, on its
   side, or upside down on the chassis. The `imu.tiltAxis` and `imu.tiltSign` fields in
@@ -59,7 +63,16 @@ The single biggest source of bugs in a balancing robot is a wrong sign. Be expli
 - The desktop side `SafetyMonitor` enforces software level limits but cannot help if the
   hub firmware is unresponsive. Hardware safety is your responsibility.
 
-## 5. What This Scaffold Does Not Assume
+## 5. Configuration Is The Source Of Truth
+
+- `configs/Default.yaml` is the desktop-side source of truth for ports, signs, limits,
+  and geometry.
+- `src/LegoBalance/HubDriveSmokeRuntime.py` is generated from that YAML file for the
+  package-backed hub smoke path.
+- The self-contained Pybricks scripts in `hub/` intentionally mirror the same values by
+  hand. If you change signs or ports, update both the YAML and the relevant hub script.
+
+## 6. What This Scaffold Does Not Assume
 
 - It does not assume any particular wheel diameter. You set this in the config.
 - It does not assume any particular center of mass height. You set this in the config.

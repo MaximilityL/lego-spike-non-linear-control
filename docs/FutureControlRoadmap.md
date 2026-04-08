@@ -1,124 +1,112 @@
 # Future Control Roadmap
 
-This document is the bridge between the current scaffold and a working Lyapunov based
-balancing controller. It is intentionally honest. The current `LyapunovController` is a
-placeholder. Filling it in is a real piece of work and this file is the plan.
+This document is the bridge between the current scaffold and a real balancing controller.
+The canonical controller module is now `src/LegoBalance/NonLinearController.py`. The old
+`LyapunovController.py` name remains only as a compatibility alias.
 
-## 1. Robot Model (Intended)
+The first intended implementation is still Lyapunov-based. The broader module name exists
+so the repo can host other nonlinear designs later without another rename.
 
-A planar two wheel inverted pendulum on a flat floor. The body is a rigid pendulum free
-to rotate about the wheel axis. The wheels are driven by motors with finite torque.
+## 1. Implemented State And Plant Convention
 
-Implemented state vector (current)
+The current estimator produces:
 
-```
+```text
 x = [theta, thetaDot, phi, phiDot]^T
 ```
 
-where
+where:
 
-- `theta` is the body tilt angle around the wheel axis, with `theta = 0` being upright.
-- `thetaDot` is the body tilt rate.
-- `phi` is the **mean wheel rotation angle** in radians, taken as the average of the two
-  sign corrected wheel encoder angles. This is the implemented wheel motion state at this
-  stage of the project. It does **not** depend on the wheel radius.
-- `phiDot` is the mean wheel rotation rate in radians per second.
+- `theta` is body tilt around the wheel axis, in radians, with `theta = 0` upright.
+- `thetaDot` is body tilt rate in rad/s.
+- `phi` is mean wheel rotation in radians after encoder sign correction.
+- `phiDot` is mean wheel rotation rate in rad/s.
 
-The pure translation pair `p` (linear distance, m) and `pDot` (linear velocity, m/s) is a
-secondary, derived view. It is computed when needed via `p = r * phi` and
-`pDot = r * phiDot` using the chassis wheel radius. See `BalanceState.LinearPosition` and
-`BalanceState.LinearVelocity`. We do not store `p` or `pDot` on the state on purpose, so
-that the core estimator does not depend on a wheel radius calibration that may not yet be
-finalized. The Lyapunov design below is written in terms of the implemented state. If the
-controller cost is more naturally expressed in terms of `p`, the conversion is a single
-linear scaling that can be applied just before the cost is evaluated.
+The translational pair `p` and `pDot` is derived only when needed:
 
-Control input
-
-```
-u = wheel torque (Nm) or wheel angular velocity command (rad/s)
+```text
+p = r * phi
+pDot = r * phiDot
 ```
 
-The scaffold lets you choose either by setting `ControlOutput.mode` to `torque` or
-`velocity`. The latter is easier to bring up because Pybricks `Motor.run` already
-implements an inner velocity loop.
+That choice is deliberate. It keeps the core estimator close to the encoders and avoids
+hard-wiring the control state to a wheel-radius calibration before that value is trusted.
 
-## 2. Linearization (For Sanity Checking Only)
+## 2. Control Objective
 
-Around the upright equilibrium `x = 0` the linearized model has the structure
+The balancing controller should stabilize the upright equilibrium while prioritizing body
+tilt over wheel motion:
 
+- Drive `theta -> 0`.
+- Drive `thetaDot -> 0`.
+- Optionally regulate `phi` / `phiDot`, or the derived `p` / `pDot`, with weaker weight.
+- Return symmetric left/right commands for pure sagittal balance. Yaw control is out of
+  scope for now.
+
+The output contract is already fixed by `ControlOutput`:
+
+```text
+u = wheel velocity command (rad/s), torque proxy, or duty command
 ```
-xDot = A x + B u
-```
 
-with
+`ControlMode.Velocity` is the easiest first target because Pybricks `Motor.run` already
+provides the inner motor loop.
 
-- A nontrivial coupling between `theta` and `p` because the body acts as a pendulum
-  reaction load on the wheels.
-- A `g/h` term in A coming from gravity, where `g` is gravitational acceleration and
-  `h` is the height of the center of mass.
+## 3. Recommended First Design Path
 
-You should compute the symbolic A and B for your specific chassis using the geometry in
-`configs/Default.yaml` before designing the controller. The scaffold does not do this
-for you because the values depend on your build.
+1. Verify the signs, units, and chassis parameters in `configs/Default.yaml`.
+2. Derive or identify the planar inverted-pendulum model around the upright equilibrium.
+3. Start with a baseline stabilizer on the implemented state.
+4. If the design is Lyapunov-based, a common first pass is:
 
-## 3. Lyapunov Approach Outline
-
-A defensible candidate Lyapunov function for a two wheel balancer is
-
-```
+```text
 V(x) = (1/2) x^T P x
+u = -K x
 ```
 
-with `P` symmetric positive definite, optionally augmented with an integral term in
-`p` if you want zero steady state position drift. The control law is then chosen so
-that
+with `P` positive definite and `K` chosen so the closed-loop derivative is negative in a
+useful operating region.
 
-```
-dV/dt = x^T P (A x + B u) <= -alpha V(x)
-```
+5. Implement the law inside `NonLinearController.Compute`.
+6. Add saturation explicitly before returning a command.
+7. Validate on the desktop before considering hub deployment.
 
-for some `alpha > 0` along trajectories of the closed loop system. The
-`LyapunovController` placeholder documents this objective in its docstring and exposes
-the right method shape for the future implementation.
+Nothing in the scaffold forces Lyapunov specifically, but the current placeholder
+docstring and this roadmap both assume that is the most likely first implementation.
 
-A reasonable design pipeline:
+## 4. Where The Real Code Plugs In
 
-1. Identify the linearized model from chassis parameters.
-2. Solve a continuous time algebraic Lyapunov equation `A^T P + P A = -Q` for some
-   symmetric positive definite `Q` chosen to penalize tilt strongly.
-3. Pick `u = -K x` with K from any standard linear method (LQR is fine here).
-4. Verify offline that with this `u`, `dV/dt < 0` along the closed loop trajectories
-   in a reasonable region.
-5. Optionally extend to a nonlinear Lyapunov design once the linear baseline works on
-   real hardware.
+- **Estimator.** `StateEstimator.Update(measurement)` already returns the controller input.
+- **Controller.** `NonLinearController.Compute(state)` is the one method that needs the
+  real balancing law.
+- **Safety.** `SafetyMonitor.Check(state, control, currentTime=...)` already gates the
+  result before it reaches the motors.
+- **Simulation.** `examples/ClosedLoopSimulation.py` already wires estimator, controller,
+  safety, logging, and mock hardware together.
+- **Hub deployment.** The current package-backed hub smoke path still uses
+  `DriveCommandController`. A real balancing deployment will need either a new self-
+  contained Pybricks entrypoint or a shared package path that keeps the controller
+  MicroPython-safe.
 
-The scaffold is structured so that step 1 through step 4 can happen entirely on the
-desktop, against `examples/ClosedLoopSimulation.py`, before any hub deployment.
+## 5. Validation Sequence
 
-## 4. What Plugs In Where
+Use this order:
 
-- **State estimator.** `StateEstimator.Update(measurement)` returns a `BalanceState`.
-  Today it applies the configured IMU sign correction (plus zero offset and gyro bias)
-  and averages the two sign corrected wheel encoder signals to produce
-  `theta`, `thetaDot`, `phi`, and `phiDot`. The translation pair `p` and `pDot` is not
-  part of the implemented state; it is computed on demand from `phi` and the wheel
-  radius via `BalanceState.LinearPosition` / `BalanceState.LinearVelocity`. Replace the
-  IMU body with a complementary filter (or a Kalman filter if you prefer) once the basic
-  pipeline is validated.
-- **Controller.** `LyapunovController.Compute(state)` returns a `ControlOutput`. Today
-  it returns zero. Replace its body with the Lyapunov based control law from section 3.
-- **Safety.** `SafetyMonitor.Check(state, control)` is already wired and will gate the
-  command before it reaches the motors.
-- **Deployment.** Once the controller works in `ClosedLoopSimulation.py`, either copy the
-  math into a single self contained Pybricks program in `hub/` or keep the shared
-  estimator/controller path MicroPython-safe enough for a package-backed entrypoint like
-  `HubPackageDriveSmoke.py`.
+1. Unit-test the controller contract in `tests/test_NonLinearController.py`.
+2. Run the desktop mock loop in `examples/ClosedLoopSimulation.py`.
+3. Add or update offline plots and log analysis if the design needs them.
+4. Only then move toward on-hub execution.
 
-## 5. What Is Out Of Scope For This Repo
+If the controller is meant to run from the shared package on the hub, keep the
+implementation limited to MicroPython-safe features: plain `math`, small lists, and
+small matrix code instead of desktop-only dependencies such as `numpy`.
 
-- Identifying motor torque constants from data (you can add a script later).
-- Online parameter estimation.
-- Path following or trajectory tracking.
+## 6. Work Still Outside The Current Scaffold
 
-These can be built on top of this scaffold. They should not block the bring up.
+- Estimator fusion beyond the current sign-corrected direct state calculation.
+- System identification for torque constants and friction.
+- Yaw control, steering, or trajectory tracking.
+- Online bias estimation.
+
+Those are all valid future steps, but they are not prerequisites for landing the first
+balancing controller.

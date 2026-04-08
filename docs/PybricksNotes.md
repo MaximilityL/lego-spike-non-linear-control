@@ -23,7 +23,10 @@ normal desktop side `LegoBalance` package is not uploaded to the hub. The one de
 exception is `src/HubPackageDriveSmoke.py`, which imports the shared
 `LegoBalance.StateEstimator`, `DriveCommandController`, and `SafetyMonitor` modules so
 package logic can be tested on hardware. Its hub-safe config helper is generated from
-`configs/Default.yaml` by the laptop plotter before upload.
+`configs/Default.yaml` by `scripts/GenerateHubDriveSmokeRuntime.py` before upload.
+
+If you eventually want `NonLinearController` to run through the same shared package path,
+keep that module MicroPython-safe too.
 
 ## 3. Useful Imports
 
@@ -90,6 +93,7 @@ arithmetic. 200 Hz is achievable but leaves less headroom for logging or printin
 - **No `numpy`.** MicroPython does not ship numpy. Use plain `math` and small Python
   lists for hub side code. Keep matrices tiny (4x4 is fine).
 - **No `dataclasses`.** Use plain classes or tuples on the hub side.
+- **No YAML parsing.** Hub-side config must be hard coded or generated ahead of time.
 - **No filesystem.** Logging on the hub goes to the Pybricks Code terminal. Capture it
   there or stream values over Bluetooth from the desktop side.
 - **`print` is slow.** Excessive prints will choke a 100 Hz loop. Print every Nth
@@ -123,3 +127,10 @@ pybricksdev run ble --name "Pybricks Hub" hub/HubMain.py
 
 On Linux you may need Bluetooth permissions. Adding your user to the `bluetooth` group
 usually does it.
+
+For the package-backed smoke path:
+
+```bash
+python scripts/GenerateHubDriveSmokeRuntime.py
+pybricksdev run ble src/HubPackageDriveSmoke.py
+```

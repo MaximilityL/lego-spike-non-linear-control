@@ -1,102 +1,116 @@
 # Architecture Overview
 
-This document explains how the pieces of the project fit together. Read it after the
-top level `README.md`.
+This repo is structured so that the balancing controller is the only hard part left to
+implement. The configuration loader, state boundary objects, estimator, safety layer,
+mock hardware, and hub smoke paths already exist.
 
-## 1. Two Halves
+## 1. Two Execution Environments
 
-There are two distinct execution environments.
+- **Desktop side.** Standard CPython. Most design work happens under
+  `src/LegoBalance/`, `tests/`, `examples/`, and `scripts/`. This is where you model,
+  test, document, and iterate quickly.
+- **Hub side.** Pybricks MicroPython on the SPIKE Prime hub. Most files under `hub/`
+  are intentionally self contained. The one package-backed exception is
+  `src/HubPackageDriveSmoke.py`, which imports a MicroPython-safe subset of the
+  `LegoBalance` package plus a generated config helper.
 
-- **Desktop side.** Standard CPython 3.10 or newer. Lives entirely under
-  `src/LegoBalance/`, `tests/`, `examples/`, and `scripts/`. Has access to the full
-  Python ecosystem, type hints, dataclasses, pytest, ruff, mypy.
-- **Hub side.** MicroPython under Pybricks, running on the SPIKE Prime hub. Most hub
-  scripts live under `hub/` and are self contained. The package-backed drive smoke
-  entrypoint lives at `src/HubPackageDriveSmoke.py` so `pybricksdev` can upload the
-  shared estimator/controller/safety modules beside it. Its hub-specific helper only
-  supplies default config values.
+The key architectural rule is simple: desktop logic must stay decoupled from
+`pybricks.*`, and hub entrypoints must stay honest about what can actually run on the
+device.
 
-The desktop side is where you design, test, and document. The hub side is where you
-actually run code. The normal path keeps the two in sync by convention; the package smoke
-path imports the same estimator/controller/safety logic used on the desktop.
+## 2. Core Modules
 
-## 2. The Module Layers
+| Layer | Main modules | Responsibility |
+| --- | --- | --- |
+| Config and units | `RobotConfig`, `Units`, `Saturation` | Typed config, unit conversion, and command clamping helpers |
+| Estimation boundary | `ControlInterfaces.Measurement`, `StateEstimator`, `BalanceState` | Convert raw sensor readings into the canonical state |
+| Controllers | `ControllerBase`, `DriveCommandController`, `NonLinearController` | Map state to left/right wheel commands |
+| Safety | `SafetyMonitor` | Arm, gate, and trip before commands reach the motors |
+| Adapters and logging | `MockAdapters`, `HubInterface`, `MotorInterface`, `ImuInterface`, `DataLogger` | Mock hardware, abstract interfaces, and offline analysis |
 
-```
-                +---------------------------------------------------+
-                |              Application or Example                |
-                |  examples/ClosedLoopSimulation.py, scripts/...      |
-                +---------------------------------------------------+
-                                       |
-                                       v
-+------------------+   +----------------------+   +-------------------+
-|  RobotConfig     |   |  Controller          |   |  StateEstimator   |
-|  Saturation      |-->|  ControllerBase      |<--|  BalanceState     |
-|  Units           |   |  LyapunovController  |   |                   |
-+------------------+   +----------------------+   +-------------------+
-                                       |
-                                       v
-                       +------------------------------+
-                       |  ControlInterfaces           |
-                       |  ControlOutput, Measurement  |
-                       +------------------------------+
-                                       |
-                                       v
-+----------------+    +------------------+    +-----------------+
-|  HubInterface  |--->|  MotorInterface  |    |  ImuInterface   |
-+----------------+    +------------------+    +-----------------+
-        |                     |                       |
-        v                     v                       v
-   MockHub /             MockMotor /             MockImu /
-   PybricksHub*         PybricksMotor*           PybricksImu*
+`src/LegoBalance/LyapunovController.py` still exists only as a backward-compatible alias.
+The canonical balancing-controller module is now `src/LegoBalance/NonLinearController.py`.
 
-(* lives in `hub/` because it imports from `pybricks.*`)
+## 3. State And Command Boundary
+
+The implemented control state is:
+
+```text
+x = [theta, thetaDot, phi, phiDot]
 ```
 
-## 3. Data Flow For A Single Control Step
+where:
 
-1. Each subsystem polls the `HubInterface` for fresh measurements.
-2. Measurements are wrapped in a `Measurement` object and handed to the
-   `StateEstimator`.
-3. The estimator returns a `BalanceState` object containing tilt, tilt rate, wheel
-   position, and wheel velocity.
-4. The `Controller` consumes the `BalanceState` and returns a `ControlOutput` containing
-   the wheel torque or wheel rate command.
-5. `SafetyMonitor.Check(state, control)` either passes the command through or replaces
-   it with a stop command.
-6. The `MotorInterface` applies the (possibly safety filtered) command.
-7. The `DataLogger` records everything for offline analysis.
+- `theta` / `tilt` is body pitch in radians.
+- `thetaDot` / `tiltRate` is body pitch rate in rad/s.
+- `phi` is mean wheel rotation in radians after encoder sign correction.
+- `phiDot` is mean wheel rotation rate in rad/s.
 
-## 4. Why Abstract Interfaces
+The translational pair `p` and `pDot` is intentionally derived, not stored:
 
-Inverted pendulum balancing depends on getting many small things right at the same
-time. To debug it you need to be able to:
+```text
+p = r * phi
+pDot = r * phiDot
+```
 
-- Replay a logged state into the controller without hardware.
-- Swap a real IMU for a fake one that produces a known signal.
-- Test the safety monitor with synthetic dangerous inputs.
-- Run the entire control loop in simulation before deploying.
+That keeps the core estimator radius-independent until the wheel radius is trusted.
 
-Abstract interfaces make all of this trivial. The desktop code never imports from
-`pybricks.*`. It always talks through `HubInterface`, `MotorInterface`, and
-`ImuInterface`. In tests we inject mocks. On the hub, the equivalent functions are
-usually implemented inline against the real Pybricks API in scripts under `hub/`; the
-package-backed smoke test imports the shared `LegoBalance` estimator/controller/safety
-logic instead.
+Commands cross the controller boundary as `ControlOutput`. Positive command means forward
+chassis motion / increasing `phi`. The controller does not apply motor mounting signs;
+that is handled by config and adapters below it.
 
-## 5. Why Not Use One Big Class
+## 4. Single Control Step
 
-Two reasons.
+The runtime loop is the same on desktop and on the hub-safe package path:
 
-- **Testability.** A monolithic balance class would be impossible to test without
-  hardware.
-- **Future extensibility.** The user has stated that the long term target is a Lyapunov
-  based controller. That controller needs a clean place to plug in. The `ControllerBase`
-  abstraction is exactly that place.
+1. Read sensors and build a `Measurement` in SI units.
+2. Call `StateEstimator.Update(measurement)` to get a `BalanceState`.
+3. Call `controller.Compute(state)` to get a `ControlOutput`.
+4. Pass the result through `SafetyMonitor.Check(...)`.
+5. Apply the safe command to the motors.
+6. Log the state and command for offline analysis.
 
-## 6. Where The Lyapunov Controller Will Live
+In code, that shape looks like this:
 
-It lives in `src/LegoBalance/LyapunovController.py`. The class already exists with
-documented method signatures and a fully described mathematical objective. The body of
-`Compute` is intentionally a placeholder. See `docs/FutureControlRoadmap.md` for the
-plan to fill it in.
+```python
+measurement = MakeMeasurement(...)
+state = estimator.Update(measurement)
+rawCommand = controller.Compute(state)
+safeCommand = safety.Check(state, rawCommand, currentTime=state.timestamp)
+motors.Apply(safeCommand)
+logger.Record(state, safeCommand)
+```
+
+That loop is already exercised by `examples/ClosedLoopSimulation.py` and by the
+package-backed drive smoke runtime.
+
+## 5. Current Entry Points
+
+- `examples/EstimatorReadout.py`: prints the implemented state without involving a
+  controller.
+- `examples/DriveCommandSmoke.py`: desktop mock run of the forward/stop/backward smoke
+  flow.
+- `examples/ClosedLoopSimulation.py`: mock closed loop using `NonLinearController`,
+  `StateEstimator`, `SafetyMonitor`, and `MockHub`.
+- `hub/HubMain.py`: self-contained Pybricks sensor bring-up and telemetry.
+- `hub/HubDriveSmoke.py`: self-contained Pybricks drive smoke script.
+- `src/HubPackageDriveSmoke.py`: package-backed hub smoke path that imports shared
+  estimator, drive controller, and safety code.
+- `scripts/GenerateHubDriveSmokeRuntime.py`: regenerates
+  `src/LegoBalance/HubDriveSmokeRuntime.py` from `configs/Default.yaml`.
+
+## 6. Controller Integration Boundary
+
+If someone is implementing the balancing law, the file to edit is
+`src/LegoBalance/NonLinearController.py`.
+
+What the rest of the repo guarantees to that class:
+
+- It receives a sign-corrected, SI-unit `BalanceState`.
+- It can read physical parameters and limits through `self.config`.
+- It can return either velocity, torque, or duty commands via `ControlOutput.mode`.
+- It does not need to talk to motors directly.
+- It does not need to enforce the final stop/trip logic; `SafetyMonitor` already exists.
+
+For the implementation handoff and interaction contract, see
+`docs/NonLinearControllerDesignGuide.md`.
