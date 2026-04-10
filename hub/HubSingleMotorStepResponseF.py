@@ -25,6 +25,8 @@ SAFETY: lift the motor or hold the robot before running. The velocity step and
 the position step both move the shaft.
 """
 
+# ruff: noqa: UP032
+
 from pybricks.hubs import PrimeHub
 from pybricks.parameters import Button, Port
 from pybricks.pupdevices import Motor
@@ -54,14 +56,20 @@ def CenterPressed(hub):
 def FormatScalar(value):
     if value is None:
         return "nan"
-    return f"{value:+.3f}"
+    return "{:+.3f}".format(value)
 
 
 def EmitData(phase, segment, timeSec, angleRefDeg, angleMeasDeg, speedRefDps, speedMeasDps):
     print(
-        f"DATA,{phase},{segment},{timeSec:.3f},{FormatScalar(angleRefDeg)},"
-        f"{FormatScalar(angleMeasDeg)},{FormatScalar(speedRefDps)},"
-        f"{FormatScalar(speedMeasDps)}"
+        "DATA,{},{},{:.3f},{},{},{},{}".format(
+            phase,
+            segment,
+            timeSec,
+            FormatScalar(angleRefDeg),
+            FormatScalar(angleMeasDeg),
+            FormatScalar(speedRefDps),
+            FormatScalar(speedMeasDps),
+        )
     )
 
 
@@ -117,19 +125,19 @@ def Main():
 
     print("============================================================")
     print(" HubSingleMotorStepResponseF")
-    print(f" Single-motor step response on Port {MOTOR_PORT_LABEL}.")
+    print(" Single-motor step response on Port {}.".format(MOTOR_PORT_LABEL))
     print(" Runs both a velocity step and a position step.")
     print(" Press the center button to stop cleanly.")
     print("============================================================")
-    print(f" Velocity step  : 0 -> {VELOCITY_STEP_DPS} deg/s -> 0")
-    print(f" Position step  : 0 -> {POSITION_STEP_DEG} deg -> 0")
-    print(f" Loop period    : {LOOP_PERIOD_MS} ms")
+    print(" Velocity step  : 0 -> {} deg/s -> 0".format(VELOCITY_STEP_DPS))
+    print(" Position step  : 0 -> {} deg -> 0".format(POSITION_STEP_DEG))
+    print(" Loop period    : {} ms".format(LOOP_PERIOD_MS))
     print(" DATA columns:")
     print(
         " DATA,phase,segment,t_s,angle_ref_deg,angle_meas_deg,"
         "speed_ref_deg_per_sec,speed_meas_deg_per_sec"
     )
-    print(f" Lift the motor first. Starting in {START_DELAY_MS / 1000.0:.1f} s.")
+    print(" Lift the motor first. Starting in {:.1f} s.".format(START_DELAY_MS / 1000.0))
     wait(START_DELAY_MS)
 
     stopwatch = StopWatch()
@@ -232,7 +240,10 @@ def Main():
     motor.stop()
     motor.brake()
 
-    print(f"Done. final angle = {motor.angle():+.1f} deg, final speed = {motor.speed():+.1f} deg/s")
+    print("Done. final angle = {:+.1f} deg, final speed = {:+.1f} deg/s".format(
+        motor.angle(),
+        motor.speed(),
+    ))
 
 
 Main()

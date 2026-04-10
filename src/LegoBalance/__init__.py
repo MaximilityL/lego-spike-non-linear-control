@@ -10,7 +10,7 @@ package-backed hub runs when they stay MicroPython-safe.
 
 import sys
 
-__version__ = "1.4.1"
+__version__ = "1.4.2"
 
 try:
     _PROPERTY_TYPE = property

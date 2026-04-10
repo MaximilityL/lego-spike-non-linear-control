@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.2] - 2026-04-10
+
+### Fixed
+- Reworked `hub/HubSingleMotorStepResponseF.py` to use a more conservative
+  MicroPython-safe string formatting style after the first `1.4.1` revision
+  failed during the `mpy-cross` compile step inside `pybricksdev run`. The
+  one-motor step-response experiment now compiles on the SPIKE toolchain
+  instead of dying before upload.
+
 ## [1.4.1] - 2026-04-10
 
 ### Added
