@@ -19,11 +19,11 @@ robot:
 chassis:
   wheelRadius: 0.0285         # measured wheel radius
   # wheelRadius: 0.0425         # measured wheel radius
-  wheelBase: 0.113             # distance between left and right wheel contact points
+  wheelBase: 0.11             # distance between left and right wheel contact points
   bodyMass: 0.276               # rough estimate, will be measured later
   # bodyHeightCoM: 0.1135         # height of the center of mass above the wheel axle
-  bodyHeightCoM: 0.09         # height of the center of mass above the wheel axle
-  bodyInertia: 0.00356          # rotational inertia of the body around the wheel axle
+  bodyHeightCoM: 0.105        # height of the center of mass above the wheel axle
+  bodyInertia: 0.00337          # rotational inertia of the body around the wheel axle
 
 # Motor and encoder limits.
 motors:
@@ -41,7 +41,7 @@ imu:
   tiltAxis: "roll"           # which IMU axis tracks body tilt
   tiltSign: 1                 # +1 or -1 to flip sign convention if needed
   zeroOffset: -1.5960163345   # radians, calibrated zero (-91.445 deg)
-  zeroOffset: -1.6231562044   # radians, calibrated zero (-93.0 deg)
+  # zeroOffset: -1.6231562044   # radians, calibrated zero (-93.0 deg)
   # zeroOffset: 0.0   # radians, calibrated zero (-93.0 deg)
   # zeroOffset: -1.0471975512   # radians, calibrated zero (-60 deg)
   # zeroOffset: -0.872665   # radians, calibrated zero (-50 deg)
@@ -64,24 +64,42 @@ control:
   maxWheelRate: 17.44  # rad/s commanded; 1000 deg/s validated on hub
   # maxWheelRate: 12.0  # rad/s commanded; 1000 deg/s validated on hub
   watchdogTimeout: 0.2        # s without an update before the safety monitor trips
-  targetTilt: -0.000            # rad, default upright reference for the balance controller
+  targetTilt: -0.019        # rad, default upright reference for the balance controller
 
-# Nonlinear balancing controller tuning (CLF with gravity compensation).
+
+# Nonlinear balancing controller tuning (tanh composite-variable law).
 #
-# The controller estimates alpha = m*g*l/(I+m*l^2) from the chassis geometry
-# above and uses it for the sin(theta) gravity feedforward term.
-# The effective proportional gain near upright is approximately:
-#   gravityCompGain * alpha_hat + kTheta
+# Control law (velocity command, rad/s):
+#   s = kTheta*deadband(theta) + kThetaDot*deadband(thetaDot)
+#       - kPhi*phi - kPhiDot*phiDot
+#   u = maxWheelRate * tanh(s / sScale)          [smooth bounded output]
+#   u = clamp(u, -maxWheelRate, +maxWheelRate)   [hard backstop]
 #
-# With the current geometry: alpha_hat ~ 23.6 rad/s^2, so effective P ~ 83.6.
+# Near upright the law is approximately linear with effective gains:
+#   kTheta_eff    = maxWheelRate * kTheta    / sScale   [rad/s per rad]
+#   kThetaDot_eff = maxWheelRate * kThetaDot / sScale   [rad/s per rad/s]
+#
+# With current defaults (maxWheelRate=17.44, kTheta=60, kThetaDot=8, sScale=18):
+#   kTheta_eff    ~ 58.1  rad/s per rad
+#   kThetaDot_eff ~ 7.8   (rad/s)/(rad/s)   ← close to critical damping (~7.6)
+#
+# thetaDotFilterAlpha: first-order IIR low-pass on thetaDot (0.0 = off).
+#   Use 0.2 to cut high-frequency gyro noise. DO NOT exceed 0.3 — heavier
+#   filtering adds phase lag at the control frequency and worsens oscillation.
+#
+# targetTilt (under 'control' section): adjust to fix persistent phi drift.
+#   If the robot walks forward, make targetTilt more negative (lean back).
+#   If the robot walks backward, make targetTilt more positive (lean forward).
 controller:
-  gravityCompGain: 0.5        # dimensionless; scales sin(theta) feedforward (1.0 = trust model)
-  kTheta: 30.0                # proportional tilt gain (rad/s per rad)
-  kThetaDot: 12.0             # derivative tilt gain (rad/s per rad/s) — prevents oscillation
-  kPhi: 0.3                   # wheel-position centering gain (rad/s per rad)
-  kPhiDot: 1.5                # wheel-rate damping gain (dimensionless)
-  thetaDeadband: 0.017453293     # rad, ignore +/-0.3 deg tilt noise near upright
-  thetaDotDeadband: 0.2617993878  # rad/s, ignore +/-15 deg/s tilt-rate noise
+  gravityCompGain: 0.5        # preserved for backward compat; not used by tanh controller
+  kTheta: 75.0                # dominant tilt gain (rad/s per rad)
+  kThetaDot: 4.5              # tilt-rate damping gain; keep this modest on noisy gyro data
+  kPhi: 0.04                  # weak wheel-position centering gain (rad/s per rad)
+  kPhiDot: 0.35               # weak wheel-rate damping gain (dimensionless)
+  sScale: 14.0                # composite-variable normalisation scale; controls tanh knee
+  thetaDotFilterAlpha: 0.30    # IIR filter coeff (0.0=off, 0.2=light noise filter, max 0.3)
+  thetaDeadband: 0.02094395     # rad, ±1.2 deg tilt noise suppression near upright
+  thetaDotDeadband: 0.61086524   # rad/s, ±35 deg/s tilt-rate noise suppression
 
 # Pre balancing drive command path. Used by DriveCommandController and the
 # forward/backward/stop smoke flows. These mirror the values validated on
@@ -89,7 +107,7 @@ controller:
 # autonomous motion.
 drive:
   loopPeriodMs: 20            # hub loop period for the package drive smoke test
-  printEveryN: 1              # emit one telemetry row every N control iterations
+  printEveryN: 20              # emit one telemetry row every N control iterations
   stopDurationMs: 50          # stop leg duration in the smoke schedule
   driveDurationMs: 5000       # forward/backward leg duration in the smoke schedule
   testSpeed: 17.44 #1.74532925199    # rad/s, 100 deg/s forward/backward smoke command

@@ -75,6 +75,10 @@ class SafetyMonitor:
         self.status.armed = False
         self.status.reasons.append(reason)
 
+    def _IsFinite(self, value: float) -> bool:
+        """Return ``True`` when the scalar is neither NaN nor infinite."""
+        return value == value and value not in (float("inf"), float("-inf"))
+
     def Check(
         self,
         state: BalanceState,
@@ -99,6 +103,14 @@ class SafetyMonitor:
 
         if not state.valid:
             self.Trip("state estimate not valid")
+        if not self._IsFinite(state.tilt):
+            self.Trip("tilt is not finite")
+        if not self._IsFinite(state.tiltRate):
+            self.Trip("tiltRate is not finite")
+        if not self._IsFinite(controlOutput.leftCommand):
+            self.Trip("left command is not finite")
+        if not self._IsFinite(controlOutput.rightCommand):
+            self.Trip("right command is not finite")
         if abs(state.tilt) > self._maxTilt:
             self.Trip(f"|tilt| {abs(state.tilt):.3f} exceeds max {self._maxTilt:.3f}")
         if abs(state.tiltRate) > self._maxTiltRate:

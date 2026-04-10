@@ -1,0 +1,1 @@
+- [Tanh composite-variable controller](project_tanh_controller.md) — NonLinearController replaced with model-light tanh law; sScale config field added

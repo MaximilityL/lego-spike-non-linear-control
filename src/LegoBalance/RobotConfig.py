@@ -21,18 +21,18 @@ LOCAL_CONFIG_PATH = REPO_ROOT / "configs" / "local.yaml"
 @dataclass
 class ChassisConfig:
     wheelRadius: float = 0.0285
-    wheelBase: float = 0.08
-    bodyMass: float = 0.4
-    bodyHeightCoM: float = 0.04
-    bodyInertia: float = 0.006
+    wheelBase: float = 0.11
+    bodyMass: float = 0.276
+    bodyHeightCoM: float = 0.105
+    bodyInertia: float = 0.00337
 
 
 @dataclass
 class MotorsConfig:
     leftPort: str = "B"
-    rightPort: str = "A"
+    rightPort: str = "F"
     maxAngularRate: float = 17.453292519943295
-    maxDuty: float = 80.0
+    maxDuty: float = 90.0
     encoderCountsPerRev: int = 360
     forwardSign: int = -1
     leftEncoderSign: int = 1
@@ -41,9 +41,9 @@ class MotorsConfig:
 
 @dataclass
 class ImuConfig:
-    tiltAxis: str = "pitch"
-    tiltSign: int = -1
-    zeroOffset: float = -1.0471975511965976
+    tiltAxis: str = "roll"
+    tiltSign: int = 1
+    zeroOffset: float = -1.5960163345
     gyroBias: float = 0.0
 
 
@@ -61,20 +61,22 @@ class ControlConfig:
     maxTiltRate: float = 10.0
     maxWheelRate: float = 17.44
     watchdogTimeout: float = 0.2
-    targetTilt: float = 0.0
+    targetTilt: float = -0.012
 
 
 @dataclass
 class ControllerConfig:
-    """Tuning constants for the CLF nonlinear balancing controller."""
+    """Tuning constants for the tanh composite-variable balancing controller."""
 
-    gravityCompGain: float = 1.0
-    kTheta: float = 60.0
-    kThetaDot: float = 10.0
-    kPhi: float = 0.3
-    kPhiDot: float = 1.5
-    thetaDeadband: float = 0.005235987755982988
-    thetaDotDeadband: float = 0.2617993877991494
+    gravityCompGain: float = 0.5        # preserved for backward compat; unused by tanh law
+    kTheta: float = 75.0                # dominant tilt gain (rad/s per rad)
+    kThetaDot: float = 4.5              # tilt-rate damping gain (rad/s per rad/s)
+    kPhi: float = 0.04                  # weak wheel-position centering gain (rad/s per rad)
+    kPhiDot: float = 0.35               # weak wheel-rate damping gain (dimensionless)
+    sScale: float = 14.0                # normalisation scale for composite variable (rad)
+    thetaDotFilterAlpha: float = 0.3    # IIR low-pass coefficient (0.0=off, 0.2=light noise filter)
+    thetaDeadband: float = 0.02094395
+    thetaDotDeadband: float = 0.61086524
 
 
 @dataclass
@@ -87,7 +89,7 @@ class DriveConfig:
     """
 
     loopPeriodMs: int = 20
-    printEveryN: int = 1
+    printEveryN: int = 5
     stopDurationMs: int = 50
     driveDurationMs: int = 5000
     testSpeed: float = 17.44
@@ -154,6 +156,10 @@ class RobotConfig:
             raise ValueError("controller.thetaDeadband must be non negative")
         if self.controller.thetaDotDeadband < 0:
             raise ValueError("controller.thetaDotDeadband must be non negative")
+        if self.controller.sScale <= 0:
+            raise ValueError("controller.sScale must be positive")
+        if not (0.0 <= self.controller.thetaDotFilterAlpha < 1.0):
+            raise ValueError("controller.thetaDotFilterAlpha must be in [0.0, 1.0)")
         if self.drive.testSpeed < 0:
             raise ValueError("drive.testSpeed must be non negative")
         if self.drive.loopPeriodMs <= 0:

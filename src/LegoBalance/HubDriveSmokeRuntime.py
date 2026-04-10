@@ -13,10 +13,10 @@ small Pybricks-friendly config object because the hub cannot parse YAML.
 class ChassisConfig:
     def __init__(self):
         self.wheelRadius = 0.0285
-        self.wheelBase = 0.113
+        self.wheelBase = 0.11
         self.bodyMass = 0.276
-        self.bodyHeightCoM = 0.09
-        self.bodyInertia = 0.00356
+        self.bodyHeightCoM = 0.105
+        self.bodyInertia = 0.00337
 
 
 class MotorsConfig:
@@ -35,7 +35,7 @@ class ImuConfig:
     def __init__(self):
         self.tiltAxis = 'roll'
         self.tiltSign = 1
-        self.zeroOffset = -1.6231562044
+        self.zeroOffset = -1.5960163345
         self.gyroBias = 0.0
 
 
@@ -53,24 +53,26 @@ class ControlConfig:
         self.maxTiltRate = 10.0
         self.maxWheelRate = 17.44
         self.watchdogTimeout = 0.2
-        self.targetTilt = -0.0
+        self.targetTilt = -0.019
 
 
 class ControllerConfig:
     def __init__(self):
         self.gravityCompGain = 0.5
-        self.kTheta = 30.0
-        self.kThetaDot = 12.0
-        self.kPhi = 0.3
-        self.kPhiDot = 1.5
-        self.thetaDeadband = 0.017453293
-        self.thetaDotDeadband = 0.2617993878
+        self.kTheta = 75.0
+        self.kThetaDot = 4.5
+        self.kPhi = 0.04
+        self.kPhiDot = 0.35
+        self.sScale = 14.0
+        self.thetaDotFilterAlpha = 0.3
+        self.thetaDeadband = 0.02094395
+        self.thetaDotDeadband = 0.61086524
 
 
 class DriveConfig:
     def __init__(self):
         self.loopPeriodMs = 20
-        self.printEveryN = 1
+        self.printEveryN = 20
         self.stopDurationMs = 50
         self.driveDurationMs = 5000
         self.testSpeed = 17.44

@@ -23,7 +23,6 @@ from pybricks.parameters import Button, Port
 from pybricks.pupdevices import Motor
 from pybricks.tools import StopWatch, wait
 
-from LegoBalance.BalanceState import BalanceState
 from LegoBalance.ControlInterfaces import Measurement
 from LegoBalance.HubDriveSmokeRuntime import DefaultConfig
 from LegoBalance.NonLinearController import NonLinearController
@@ -95,20 +94,6 @@ def MakeMeasurement(hub, leftMotor, rightMotor, timestampSec, config):
         valid=True,
     )
 
-
-def BuildControllerState(state, targetTiltRad):
-    if targetTiltRad == 0.0:
-        return state
-    return BalanceState(
-        tilt=state.tilt - targetTiltRad,
-        tiltRate=state.tiltRate,
-        phi=state.phi,
-        phiDot=state.phiDot,
-        timestamp=state.timestamp,
-        valid=state.valid,
-    )
-
-
 def RunVelocity(motor, forwardSign, encoderSign, commandRadPerSec):
     motor.run(forwardSign * encoderSign * RadPerSecToDegPerSec(commandRadPerSec))
 
@@ -139,6 +124,19 @@ def PrintBanner(config, loopPeriodMs, telemetryEveryN):
     print(f"   forward sign        : {config.motors.forwardSign}")
     print(f"   left encoder sign   : {config.motors.leftEncoderSign}")
     print(f"   right encoder sign  : {config.motors.rightEncoderSign}")
+    print(" Controller gains (NonLinearController):")
+    print(f"   kTheta              : {config.controller.kTheta}")
+    print(f"   kThetaDot           : {config.controller.kThetaDot}")
+    print(f"   kPhi                : {config.controller.kPhi}")
+    print(f"   kPhiDot             : {config.controller.kPhiDot}")
+    print(f"   sScale              : {config.controller.sScale}")
+    print(f"   thetaDotFilterAlpha : {config.controller.thetaDotFilterAlpha}")
+    print(f"   thetaDeadband       : {RadToDeg(config.controller.thetaDeadband):.2f} deg")
+    print(f"   thetaDotDeadband    : {RadPerSecToDegPerSec(config.controller.thetaDotDeadband):.2f} deg/s")
+    kEff = config.control.maxWheelRate * config.controller.kTheta / config.controller.sScale
+    dEff = config.control.maxWheelRate * config.controller.kThetaDot / config.controller.sScale
+    print(f"   kTheta_eff          : {kEff:.1f} rad/s per rad")
+    print(f"   kThetaDot_eff       : {dEff:.1f} (rad/s)/(rad/s)")
     print(" Post-run diagnostic plot:")
     print("   python scripts/PlotHubPackageBalance.py")
     print("============================================================")
@@ -170,6 +168,7 @@ def Main():
     wait(START_DELAY_MS)
 
     sw = StopWatch()
+    nextTickMs = loopPeriodMs
     safety.Arm(currentTime=0.0)
     iteration = 0
     previousTripped = False
@@ -196,8 +195,7 @@ def Main():
         timeSec = sw.time() / 1000.0
         measurement = MakeMeasurement(hub, leftMotor, rightMotor, timeSec, config)
         state = estimator.Update(measurement)
-        controllerState = BuildControllerState(state, config.control.targetTilt)
-        rawCommand = controller.Compute(controllerState)
+        rawCommand = controller.Compute(state)
         safeCommand = safety.Check(state, rawCommand, currentTime=timeSec)
 
         finalThetaDeg = RadToDeg(state.tilt)
@@ -245,7 +243,12 @@ def Main():
         iteration += 1
         if safety.status.tripped:
             break
-        wait(loopPeriodMs)
+        remainingMs = nextTickMs - sw.time()
+        if remainingMs > 0:
+            wait(remainingMs)
+        else:
+            nextTickMs = sw.time()
+        nextTickMs += loopPeriodMs
 
     leftMotor.stop()
     rightMotor.stop()

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 from LegoBalance.BalanceState import BalanceState
 from LegoBalance.ControlInterfaces import ControlMode, ControlOutput
 from LegoBalance.RobotConfig import LoadConfig
@@ -112,3 +114,24 @@ def test_InvalidStateTrips():
     out = monitor.Check(invalid, MakeCommand(), currentTime=0.0)
     assert out.leftCommand == 0.0
     assert monitor.status.tripped is True
+
+
+def test_NonFiniteStateTrips():
+    config = LoadConfig(applyLocalOverride=False)
+    monitor = SafetyMonitor(config)
+    monitor.Arm(currentTime=0.0)
+    invalid = BalanceState(tilt=math.nan, tiltRate=0.0, valid=True)
+    out = monitor.Check(invalid, MakeCommand(), currentTime=0.0)
+    assert out.leftCommand == 0.0
+    assert monitor.status.tripped is True
+    assert any("not finite" in reason for reason in monitor.status.reasons)
+
+
+def test_NonFiniteCommandTrips():
+    config = LoadConfig(applyLocalOverride=False)
+    monitor = SafetyMonitor(config)
+    monitor.Arm(currentTime=0.0)
+    out = monitor.Check(MakeSafeState(), MakeCommand(left=math.nan, right=1.0), currentTime=0.0)
+    assert out.leftCommand == 0.0
+    assert monitor.status.tripped is True
+    assert any("not finite" in reason for reason in monitor.status.reasons)

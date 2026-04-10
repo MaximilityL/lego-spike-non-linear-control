@@ -112,6 +112,8 @@ class ControllerConfig:
         self.kThetaDot = {_FmtFloat(config.controller.kThetaDot)}
         self.kPhi = {_FmtFloat(config.controller.kPhi)}
         self.kPhiDot = {_FmtFloat(config.controller.kPhiDot)}
+        self.sScale = {_FmtFloat(config.controller.sScale)}
+        self.thetaDotFilterAlpha = {_FmtFloat(config.controller.thetaDotFilterAlpha)}
         self.thetaDeadband = {_FmtFloat(config.controller.thetaDeadband)}
         self.thetaDotDeadband = {_FmtFloat(config.controller.thetaDotDeadband)}
 

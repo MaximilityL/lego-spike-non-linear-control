@@ -52,13 +52,13 @@ from pybricks.tools import StopWatch, wait
 # at the same time when you change them.
 # ---------------------------------------------------------------------------
 LEFT_PORT = Port.B
-RIGHT_PORT = Port.A
+RIGHT_PORT = Port.F
 LOOP_PERIOD_MS = 20            # 50 Hz, comfortable on the hub
-PRINT_EVERY_N = 1              # print one telemetry line out of every N iterations
+PRINT_EVERY_N = 5              # print one telemetry line out of every N iterations
 
 # IMU configuration from Default.yaml
-TILT_SIGN = -1
-ZERO_OFFSET_DEG = -60.0
+TILT_SIGN = 1
+ZERO_OFFSET_DEG = -91.445
 GYRO_BIAS_DEG_PER_SEC = 0.0
 
 # Encoder/forward signs from Default.yaml
@@ -169,10 +169,10 @@ def Main():
                 return
 
             # ----- Read IMU. -----
-            pitchDeg, _ = hub.imu.tilt()
-            _, gy, _ = hub.imu.angular_velocity()
-            thetaDeg = TILT_SIGN * pitchDeg + ZERO_OFFSET_DEG
-            thetaDotDegPerSec = TILT_SIGN * gy - GYRO_BIAS_DEG_PER_SEC
+            _, rollDeg = hub.imu.tilt()
+            gx, _, _ = hub.imu.angular_velocity()
+            thetaDeg = TILT_SIGN * rollDeg + ZERO_OFFSET_DEG
+            thetaDotDegPerSec = TILT_SIGN * gx - GYRO_BIAS_DEG_PER_SEC
 
             # ----- Read encoders, compute phi / phiDot. -----
             leftAngleDeg = leftMotor.angle()

@@ -19,27 +19,30 @@ def test_DefaultConfigLoadsAndValidates():
     config = LoadConfig(applyLocalOverride=False)
     assert isinstance(config, RobotConfig)
     assert config.chassis.wheelRadius == pytest.approx(0.0285)
+    assert config.chassis.wheelBase == pytest.approx(0.11)
     assert config.motors.leftPort == "B"
-    assert config.motors.rightPort == "A"
+    assert config.motors.rightPort == "F"
     assert config.motors.forwardSign == -1
     assert config.motors.leftEncoderSign == 1
     assert config.motors.rightEncoderSign == -1
     assert config.motors.maxAngularRate == pytest.approx(17.4532925199)
-    assert config.imu.zeroOffset == pytest.approx(-0.7801621756)
+    assert config.imu.zeroOffset == pytest.approx(-1.5960163345)
     assert 0.0 < config.estimator.alpha < 1.0
     assert config.control.maxTilt > 0
     assert config.control.maxTilt == pytest.approx(2.0)
     assert config.control.maxWheelRate == pytest.approx(17.44)
-    assert config.control.targetTilt == pytest.approx(0.0)
-    assert config.controller.gravityCompGain == pytest.approx(1.0)
+    assert config.control.targetTilt == pytest.approx(-0.012)
+    assert config.controller.gravityCompGain == pytest.approx(0.5)
     assert config.controller.kTheta == pytest.approx(60.0)
-    assert config.controller.kThetaDot == pytest.approx(10.0)
-    assert config.controller.kPhi == pytest.approx(0.3)
-    assert config.controller.kPhiDot == pytest.approx(1.5)
-    assert config.controller.thetaDeadband == pytest.approx(0.0052359878)
-    assert config.controller.thetaDotDeadband == pytest.approx(0.2617993878)
+    assert config.controller.kThetaDot == pytest.approx(8.0)
+    assert config.controller.kPhi == pytest.approx(0.2)
+    assert config.controller.kPhiDot == pytest.approx(1.2)
+    assert config.controller.sScale == pytest.approx(18.0)
+    assert config.controller.thetaDotFilterAlpha == pytest.approx(0.2)
+    assert config.controller.thetaDeadband == pytest.approx(0.017453293)
+    assert config.controller.thetaDotDeadband == pytest.approx(0.34906585)
     assert config.drive.loopPeriodMs == 20
-    assert config.drive.printEveryN == 1
+    assert config.drive.printEveryN == 5
     assert config.drive.stopDurationMs == 50
     assert config.drive.driveDurationMs == 5000
     assert config.drive.testSpeed == pytest.approx(17.44)

@@ -93,6 +93,8 @@ class StateEstimator:
             A populated :class:`BalanceState`. ``valid`` is ``True`` once at
             least one measurement has been seen.
         """
+        measurementValid = bool(getattr(measurement, "valid", True))
+
         # ----- Body tilt: theta and thetaDot. -----
         # Sign correction first, then add the calibrated zero offset. The hooks for a
         # future complementary filter live here: blend self._tiltEstimate
@@ -125,7 +127,7 @@ class StateEstimator:
             phi=self._phiEstimate,
             phiDot=self._phiDotEstimate,
             timestamp=measurement.timestamp,
-            valid=True,
+            valid=measurementValid,
         )
 
     # ----- Optional translation helpers. -----

@@ -135,3 +135,12 @@ def test_ResetClearsHistory():
     assert state.tilt == pytest.approx(config.imu.zeroOffset)
     assert state.phi == pytest.approx(0.0)
     assert state.phiDot == pytest.approx(0.0)
+
+
+def test_UpdatePropagatesMeasurementValidity():
+    config = LoadConfig(applyLocalOverride=False)
+    estimator = StateEstimator(config)
+    measurement = MakeMeasurement(tilt=0.1, tiltRate=0.2, timestamp=0.5)
+    measurement.valid = False
+    state = estimator.Update(measurement)
+    assert state.valid is False

@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.2] - 2026-04-10
+
+### Changed
+- Reframed the balancing logic around a model-light tanh composite variable
+  instead of a model-dependent gravity-cancellation law. The controller now
+  treats tilt and tilt-rate as the primary stabilizing signals, keeps wheel
+  position and wheel-rate as optional weak drift terms, and exposes the
+  nonlinear knee explicitly through `sScale`.
+- Made the balance-point logic explicit. `targetTilt` now represents the
+  actual upright operating point tracked by the shared controller, rather than
+  being partially applied in the hub script and partially implied by the IMU
+  calibration.
+- Tuned the hardware-facing defaults toward a calmer real-hub experiment loop:
+  `100 Hz` balance timing, stronger tilt authority, softer and more filtered
+  tilt-rate damping, wider quiet zones near upright, and lower default
+  telemetry pressure over Bluetooth.
+
+### Fixed
+- Removed a hub-runtime logic bug where the package-backed balance script
+  effectively applied `targetTilt` twice before sending the state into the
+  controller, biasing the operating point during real balancing runs.
+- Replaced the old "work then sleep" timing behavior in the package-backed
+  balance loop with a deadline-based cadence so the real hub loop better
+  matches the configured control rate under logging and BLE jitter.
+- Corrected the package-backed and standalone drive-smoke paths so they follow
+  the configured tilt axis and current verified hardware mapping instead of
+  silently assuming the older pitch-axis bring-up layout.
+- Hardened the estimator/safety boundary: measurement validity now propagates
+  through `StateEstimator`, and `SafetyMonitor` now trips on non-finite state
+  or command values instead of letting bad telemetry leak into the motor path.
+
+### Tests
+- Expanded the controller tests around the new tanh law, target-tilt handling,
+  filter state, and config sensitivity so the release checks the implemented
+  balancing logic rather than only the controller interface shape.
+- Updated config, safety, estimator, and generated-runtime parity tests so the
+  desktop loader, generated hub runtime, and real hub entrypoints all agree on
+  the same current control assumptions.
+
 ## [1.2.2] - 2026-04-08
 
 ### Added
