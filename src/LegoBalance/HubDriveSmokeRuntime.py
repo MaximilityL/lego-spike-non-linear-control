@@ -35,7 +35,7 @@ class ImuConfig:
     def __init__(self):
         self.tiltAxis = 'roll'
         self.tiltSign = 1
-        self.zeroOffset = -1.5960163345
+        self.zeroOffset = -0.025220008
         self.gyroBias = 0.0
 
 
@@ -53,18 +53,19 @@ class ControlConfig:
         self.maxTiltRate = 10.0
         self.maxWheelRate = 17.44
         self.watchdogTimeout = 0.2
-        self.targetTilt = -0.0675
+        self.targetTilt = -0.04
 
 
 class ControllerConfig:
     def __init__(self):
         self.algorithm = 'nonlinear'
         self.gravityCompGain = 0.5
-        self.kTheta = 100.0
+        self.kTheta = 250.0
         self.kThetaDot = 25.0
-        self.kPhi = 5.0
-        self.kPhiDot = 5.0
-        self.sScale = 40.0
+        self.kPhi = 0.0
+        self.kPhiDot = 0.0
+        self.sScale = 20.0
+        self.actuatorTau = 0.25
         self.thetaDotFilterAlpha = 0.0
         self.thetaDeadband = 0.0
         self.thetaDotDeadband = 0.0
@@ -80,7 +81,7 @@ class ControllerConfig:
 class DriveConfig:
     def __init__(self):
         self.loopPeriodMs = 20
-        self.printEveryN = 50
+        self.printEveryN = 10
         self.stopDurationMs = 50
         self.driveDurationMs = 5000
         self.testSpeed = 17.44

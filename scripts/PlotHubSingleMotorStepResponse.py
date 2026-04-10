@@ -1,8 +1,9 @@
-"""Plot a single-motor angle/speed step-response run.
+"""Plot a single-motor velocity step-response run.
 
 This is the desktop-side companion to ``hub/HubSingleMotorStepResponseF.py``.
 It launches the hub script through ``pybricksdev`` (or reads a saved log) and
-plots reference versus measured angle and speed.
+plots measured angle plus reference versus measured speed for the one-motor
+velocity sweep.
 
 Usage:
 
@@ -186,7 +187,7 @@ def Plot(
 
     fig, axes = plt.subplots(2, 1, sharex=True, figsize=(12, 8), num=runName)
     fig.suptitle(
-        runName + ": one-motor step response\nreference versus measured angle and speed"
+        runName + ": one-motor velocity sweep\nmeasured angle and reference versus measured speed"
     )
     axAngle, axSpeed = axes
 
@@ -199,7 +200,15 @@ def Plot(
         axAngle.axvspan(start, end, color=color, alpha=0.05)
         axSpeed.axvspan(start, end, color=color, alpha=0.05)
 
-    axAngle.plot(times, angleRef, color="tab:red", linestyle="--", linewidth=1.3, label="angle ref")
+    if any(value == value for value in angleRef):
+        axAngle.plot(
+            times,
+            angleRef,
+            color="tab:red",
+            linestyle="--",
+            linewidth=1.3,
+            label="angle ref",
+        )
     axAngle.plot(times, angleMeas, color="tab:blue", linewidth=1.6, label="angle meas")
     axAngle.set_ylabel("angle (deg)")
     axAngle.grid(True, alpha=0.35)

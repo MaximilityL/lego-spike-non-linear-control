@@ -45,6 +45,7 @@ def test_HubDefaultConfigMatchesDesktopDefaultConfig():
     assert hub.controller.kPhi == pytest.approx(desktop.controller.kPhi)
     assert hub.controller.kPhiDot == pytest.approx(desktop.controller.kPhiDot)
     assert hub.controller.sScale == pytest.approx(desktop.controller.sScale)
+    assert hub.controller.actuatorTau == pytest.approx(desktop.controller.actuatorTau)
     assert hub.controller.thetaDotFilterAlpha == pytest.approx(
         desktop.controller.thetaDotFilterAlpha
     )

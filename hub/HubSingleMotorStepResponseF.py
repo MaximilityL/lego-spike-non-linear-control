@@ -1,28 +1,34 @@
 """HubSingleMotorStepResponseF.py
 
-Single-motor step-response experiment for the motor on Port F.
+Single-motor velocity step-response sweep for the motor on Port F.
 
-This script runs two short experiments on one motor:
+This script runs one staircase-style velocity experiment on one motor:
 
-1. a velocity step, where the reference speed jumps from 0 to a fixed value
-   and back to 0,
-2. a position step, where the reference angle jumps from 0 to a fixed target
-   and then returns to 0.
+    0 -> 200 -> 0 -> 500 -> 0 -> 750 -> 0 -> 1000 -> 0 deg/s
 
-For each loop it prints a ``DATA,...`` telemetry row containing:
+Each plateau is held for a fixed duration so the desktop plotter can overlay
+the reference speed and the measured speed. The measured angle is also logged
+to show how the shaft position evolves during the sweep.
 
-- experiment phase (``velocity`` or ``position``),
-- segment label (``pre``, ``step``, ``post``, ``return``),
+For telemetry compatibility with the desktop plotter, the script still prints:
+
+- phase (always ``velocity`` in this script),
+- segment label (``zero_start``, ``step_200``, ``zero_after_200``,
+  ``step_500``, ``zero_after_500``, ``step_750``, ``zero_after_750``,
+  ``step_1000``, ``zero_end``),
 - time,
 - angle reference and measured angle,
 - speed reference and measured speed.
+
+The angle reference is always emitted as ``nan`` because this experiment is
+velocity-driven only.
 
 Use the desktop-side plotter to visualize reference versus measurement:
 
     python scripts/PlotHubSingleMotorStepResponse.py
 
-SAFETY: lift the motor or hold the robot before running. The velocity step and
-the position step both move the shaft.
+SAFETY: lift the motor or hold it before running. The shaft will move through
+the full velocity sweep.
 """
 
 # ruff: noqa: UP032
@@ -38,15 +44,9 @@ MOTOR_PORT_LABEL = "F"
 START_DELAY_MS = 1500
 LOOP_PERIOD_MS = 20
 
-VELOCITY_PRE_MS = 600
-VELOCITY_STEP_MS = 1800
-VELOCITY_POST_MS = 1200
-VELOCITY_STEP_DPS = 360
-
-POSITION_PRE_MS = 600
-POSITION_STEP_MS = 1800
-POSITION_RETURN_MS = 1800
-POSITION_STEP_DEG = 180
+VELOCITY_ZERO_HOLD_MS = 800
+VELOCITY_STEP_MS = 1600
+VELOCITY_STEP_LEVELS_DPS = (200, 500, 750, 1000)
 
 
 def CenterPressed(hub):
@@ -98,25 +98,6 @@ def RunVelocitySegment(hub, motor, stopwatch, nextTickMs, segment, durationMs, s
     return nextTickMs, True
 
 
-def RunPositionSegment(hub, motor, stopwatch, nextTickMs, segment, durationMs, angleRefDeg):
-    segmentEndMs = stopwatch.time() + durationMs
-    while stopwatch.time() < segmentEndMs:
-        if CenterPressed(hub):
-            return nextTickMs, False
-        motor.track_target(angleRefDeg)
-        EmitData(
-            "position",
-            segment,
-            stopwatch.time() / 1000.0,
-            angleRefDeg,
-            motor.angle(),
-            None,
-            motor.speed(),
-        )
-        nextTickMs = WaitUntilTick(stopwatch, nextTickMs)
-    return nextTickMs, True
-
-
 def Main():
     hub = PrimeHub()
     motor = Motor(MOTOR_PORT)
@@ -125,12 +106,12 @@ def Main():
 
     print("============================================================")
     print(" HubSingleMotorStepResponseF")
-    print(" Single-motor step response on Port {}.".format(MOTOR_PORT_LABEL))
-    print(" Runs both a velocity step and a position step.")
+    print(" Single-motor velocity sweep on Port {}.".format(MOTOR_PORT_LABEL))
+    print(" Runs a staircase command: 0 -> 200 -> 0 -> 500 -> 0 -> 750 -> 0 -> 1000 -> 0 deg/s.")
     print(" Press the center button to stop cleanly.")
     print("============================================================")
-    print(" Velocity step  : 0 -> {} deg/s -> 0".format(VELOCITY_STEP_DPS))
-    print(" Position step  : 0 -> {} deg -> 0".format(POSITION_STEP_DEG))
+    print(" Velocity holds : {} ms per plateau".format(VELOCITY_STEP_MS))
+    print(" Zero holds     : {} ms per zero segment".format(VELOCITY_ZERO_HOLD_MS))
     print(" Loop period    : {} ms".format(LOOP_PERIOD_MS))
     print(" DATA columns:")
     print(
@@ -143,98 +124,32 @@ def Main():
     stopwatch = StopWatch()
     nextTickMs = LOOP_PERIOD_MS
 
-    nextTickMs, ok = RunVelocitySegment(
-        hub,
-        motor,
-        stopwatch,
-        nextTickMs,
-        "pre",
-        VELOCITY_PRE_MS,
-        0,
-    )
+    velocitySchedule = [("zero_start", VELOCITY_ZERO_HOLD_MS, 0)]
+    for index, speedDps in enumerate(VELOCITY_STEP_LEVELS_DPS):
+        velocitySchedule.append(("step_{}".format(speedDps), VELOCITY_STEP_MS, speedDps))
+        zeroLabel = "zero_end"
+        if index < len(VELOCITY_STEP_LEVELS_DPS) - 1:
+            zeroLabel = "zero_after_{}".format(speedDps)
+        velocitySchedule.append((zeroLabel, VELOCITY_ZERO_HOLD_MS, 0))
+
+    ok = True
+    for segment, durationMs, speedRefDps in velocitySchedule:
+        nextTickMs, ok = RunVelocitySegment(
+            hub,
+            motor,
+            stopwatch,
+            nextTickMs,
+            segment,
+            durationMs,
+            speedRefDps,
+        )
+        if not ok:
+            break
+
     if not ok:
         motor.stop()
         motor.brake()
-        print("Aborted during velocity pre-step.")
-        return
-
-    nextTickMs, ok = RunVelocitySegment(
-        hub,
-        motor,
-        stopwatch,
-        nextTickMs,
-        "step",
-        VELOCITY_STEP_MS,
-        VELOCITY_STEP_DPS,
-    )
-    if not ok:
-        motor.stop()
-        motor.brake()
-        print("Aborted during velocity step.")
-        return
-
-    nextTickMs, ok = RunVelocitySegment(
-        hub,
-        motor,
-        stopwatch,
-        nextTickMs,
-        "post",
-        VELOCITY_POST_MS,
-        0,
-    )
-    if not ok:
-        motor.stop()
-        motor.brake()
-        print("Aborted during velocity post-step.")
-        return
-
-    motor.stop()
-    wait(300)
-    motor.reset_angle(0)
-
-    nextTickMs, ok = RunPositionSegment(
-        hub,
-        motor,
-        stopwatch,
-        nextTickMs,
-        "pre",
-        POSITION_PRE_MS,
-        0,
-    )
-    if not ok:
-        motor.stop()
-        motor.brake()
-        print("Aborted during position pre-step.")
-        return
-
-    nextTickMs, ok = RunPositionSegment(
-        hub,
-        motor,
-        stopwatch,
-        nextTickMs,
-        "step",
-        POSITION_STEP_MS,
-        POSITION_STEP_DEG,
-    )
-    if not ok:
-        motor.stop()
-        motor.brake()
-        print("Aborted during position step.")
-        return
-
-    nextTickMs, ok = RunPositionSegment(
-        hub,
-        motor,
-        stopwatch,
-        nextTickMs,
-        "return",
-        POSITION_RETURN_MS,
-        0,
-    )
-    if not ok:
-        motor.stop()
-        motor.brake()
-        print("Aborted during position return.")
+        print("Aborted during segment '{}'.".format(segment))
         return
 
     motor.stop()

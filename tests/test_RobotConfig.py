@@ -26,7 +26,7 @@ def test_DefaultConfigLoadsAndValidates():
     assert config.motors.leftEncoderSign == 1
     assert config.motors.rightEncoderSign == -1
     assert config.motors.maxAngularRate == pytest.approx(17.4532925199)
-    assert config.imu.zeroOffset == pytest.approx(-1.5960163345)
+    assert config.imu.zeroOffset == pytest.approx(-0.025220008)
     assert 0.0 < config.estimator.alpha < 1.0
     assert config.control.maxTilt > 0
     assert config.control.maxTilt == pytest.approx(2.0)
@@ -39,6 +39,7 @@ def test_DefaultConfigLoadsAndValidates():
     assert config.controller.kPhi >= 0.0
     assert config.controller.kPhiDot >= 0.0
     assert config.controller.sScale > 0.0
+    assert config.controller.actuatorTau >= 0.0
     assert 0.0 <= config.controller.thetaDotFilterAlpha < 1.0
     assert config.controller.thetaDeadband >= 0.0
     assert config.controller.thetaDotDeadband >= 0.0
@@ -139,6 +140,14 @@ def test_LoadConfigRejectsNegativeGravityCompGain(tmp_path: Path):
 
 def test_LoadConfigRejectsBadControllerDeadband(tmp_path: Path):
     bad = {"controller": {"thetaDotDeadband": -0.1}}
+    badPath = tmp_path / "bad.yaml"
+    badPath.write_text(yaml.safe_dump(bad))
+    with pytest.raises(ValueError):
+        LoadConfig(path=badPath)
+
+
+def test_LoadConfigRejectsNegativeActuatorTau(tmp_path: Path):
+    bad = {"controller": {"actuatorTau": -0.1}}
     badPath = tmp_path / "bad.yaml"
     badPath.write_text(yaml.safe_dump(bad))
     with pytest.raises(ValueError):

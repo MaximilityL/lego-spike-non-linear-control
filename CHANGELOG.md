@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-04-10
+
+### Added
+- Added `docs/MotorActuatorLagIdentification.md`, which records the Port `F`
+  single-motor velocity-step experiment, the observed first-order-like speed
+  response, and the practical inference `tau_eff ≈ 0.20 s` used for control
+  design.
+
+### Changed
+- Reworked `hub/HubSingleMotorStepResponseF.py` into a velocity-only sweep with
+  explicit zero-speed reset segments:
+  `0 -> 200 -> 0 -> 500 -> 0 -> 750 -> 0 -> 1000 -> 0 deg/s`. This makes each
+  step easier to inspect independently and gives cleaner visual separation in
+  the measured-speed trace.
+- Extended the nonlinear controller config with `controller.actuatorTau` and
+  propagated it through the desktop loader, generated hub-safe runtime, and the
+  parity tests so actuator-lag tuning is part of the normal shared config path
+  instead of a hidden controller constant.
+- Updated `NonLinearController` to account for command lag in the wheel-state
+  feedback terms. The controller now computes a provisional command, predicts
+  `phi` and `phiDot` one outer-loop step ahead under a first-order actuator
+  model parameterised by `actuatorTau`, and then recomputes the tanh law using
+  those predicted wheel states.
+- Adjusted the single-motor desktop plotter and top-level docs to match the
+  velocity-only sweep and to point report writing toward the new actuator-lag
+  identification note.
+
+### Tests
+- Added config validation and controller behavior checks for the new
+  `actuatorTau` parameter, including parity coverage for the generated
+  hub-safe runtime and nonlinear-controller tests that prove the lag
+  compensation is active only when the wheel-state terms are active.
+
 ## [1.4.2] - 2026-04-10
 
 ### Fixed

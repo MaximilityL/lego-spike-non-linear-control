@@ -93,6 +93,7 @@ def test_ComputeUsesConfiguredControllerGains():
     config.controller.kPhi = 4.0
     config.controller.kPhiDot = 5.0
     config.controller.sScale = 10.0
+    config.controller.actuatorTau = 0.0
     config.controller.thetaDeadband = 0.0
     config.controller.thetaDotDeadband = 0.0
     config.controller.thetaDotFilterAlpha = 0.0
@@ -124,6 +125,7 @@ def test_ComputeAppliesTargetTiltOffset():
     config.controller.kPhi = 0.0
     config.controller.kPhiDot = 0.0
     config.controller.sScale = 5.0
+    config.controller.actuatorTau = 0.0
     config.controller.thetaDeadband = 0.0
     config.controller.thetaDotDeadband = 0.0
     config.controller.thetaDotFilterAlpha = 0.0
@@ -151,6 +153,7 @@ def test_ComputeAppliesConfiguredQuietDeadbands():
     config.controller.thetaDeadband = 0.1
     config.controller.thetaDotDeadband = 0.2
     config.controller.sScale = 5.0
+    config.controller.actuatorTau = 0.0
     config.controller.thetaDotFilterAlpha = 0.0
     controller = NonLinearController(config)
 
@@ -327,6 +330,7 @@ def _BaseConfig():
     config.controller.kPhi = 5.0
     config.controller.kPhiDot = 5.0
     config.controller.sScale = 10.0
+    config.controller.actuatorTau = 0.0
     config.controller.thetaDotFilterAlpha = 0.0
     config.controller.thetaDeadband = 0.0
     config.controller.thetaDotDeadband = 0.0
@@ -485,3 +489,49 @@ def test_thetaDotFilterAlphaAffectsTransientResponse():
 
     # Filter starts at 0, so first effective thetaDot = (1-0.5)*1.0 = 0.5 < 1.0
     assert abs(out_on.leftCommand) < abs(out_off.leftCommand)
+
+
+def test_ActuatorTauReducesCommandWhenWheelTermsAreActive():
+    """Lag compensation should temper the command when wheel terms are used."""
+    state = _BuildValidState(tilt=0.25, phi=0.0, phiDot=0.0)
+
+    config_no_tau = _BaseConfig()
+    config_no_tau.controller.kTheta = 8.0
+    config_no_tau.controller.kThetaDot = 0.0
+    config_no_tau.controller.kPhi = 2.0
+    config_no_tau.controller.kPhiDot = 2.0
+    config_no_tau.controller.actuatorTau = 0.0
+    out_no_tau = NonLinearController(config_no_tau).Compute(state)
+
+    config_with_tau = _BaseConfig()
+    config_with_tau.controller.kTheta = 8.0
+    config_with_tau.controller.kThetaDot = 0.0
+    config_with_tau.controller.kPhi = 2.0
+    config_with_tau.controller.kPhiDot = 2.0
+    config_with_tau.controller.actuatorTau = 0.2
+    out_with_tau = NonLinearController(config_with_tau).Compute(state)
+
+    assert out_with_tau.leftCommand < out_no_tau.leftCommand
+
+
+def test_ActuatorTauHasNoEffectWhenWheelTermsAreDisabled():
+    """With kPhi = kPhiDot = 0 the lag compensation should be inert."""
+    state = _BuildValidState(tilt=0.25, phi=0.0, phiDot=0.0)
+
+    config_no_tau = _BaseConfig()
+    config_no_tau.controller.kTheta = 8.0
+    config_no_tau.controller.kThetaDot = 0.0
+    config_no_tau.controller.kPhi = 0.0
+    config_no_tau.controller.kPhiDot = 0.0
+    config_no_tau.controller.actuatorTau = 0.0
+    out_no_tau = NonLinearController(config_no_tau).Compute(state)
+
+    config_with_tau = _BaseConfig()
+    config_with_tau.controller.kTheta = 8.0
+    config_with_tau.controller.kThetaDot = 0.0
+    config_with_tau.controller.kPhi = 0.0
+    config_with_tau.controller.kPhiDot = 0.0
+    config_with_tau.controller.actuatorTau = 0.2
+    out_with_tau = NonLinearController(config_with_tau).Compute(state)
+
+    assert out_with_tau.leftCommand == pytest.approx(out_no_tau.leftCommand)

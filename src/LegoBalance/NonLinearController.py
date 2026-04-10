@@ -66,6 +66,23 @@ amplify noise and couple uncertain wheel dynamics into the tilt stabiliser.
 Keeping kPhi and kPhiDot small (typically 1-5% of the tilt gain) gives drift
 correction without compromising the primary balance loop.
 
+Why actuator-lag compensation on phi / phiDot?
+----------------------------------------------
+
+The wheel states do not react to a velocity command instantaneously. The
+single-motor Port-F sweep showed that the measured wheel speed behaves roughly
+like a first-order response with an effective time constant around
+``tau ≈ 0.2 s`` over the 200-750 deg/s range, with the 1000 deg/s step a bit
+slower near the hardware limit. If the controller uses only the currently
+measured ``phi`` / ``phiDot``, it can overreact because those wheel states lag
+behind the command it has already issued.
+
+To account for this, the controller can predict the wheel state one control
+interval ahead under a first-order actuator model parameterised by ``tau`` and
+use that predicted ``phi`` / ``phiDot`` in the wheel-state terms. The
+compensation is applied only to the wheel-state part of the law; the tilt
+channels remain measurement-based.
+
 Why tanh?
 ----------
 
@@ -189,6 +206,9 @@ class NonLinearController(ControllerBase):
         self._kThetaDot = cc.kThetaDot
         self._kPhi = cc.kPhi
         self._kPhiDot = cc.kPhiDot
+        self._actuatorTau = getattr(cc, "actuatorTau", 0.0)
+        loopRate = getattr(config.control, "loopRate", 0.0)
+        self._controlDt = 1.0 / loopRate if loopRate > 0.0 else 0.0
         self._thetaDeadband = cc.thetaDeadband
         self._thetaDotDeadband = cc.thetaDotDeadband
 
@@ -231,30 +251,10 @@ class NonLinearController(ControllerBase):
             return value + width
         return 0.0
 
-    def _ComputeVelocityCommand(self, theta, thetaDot, phi, phiDot):
-        """Evaluate the tanh composite-variable control law.
-
-        Returns the raw (pre-hard-saturation) wheel-velocity command in rad/s.
-        Mutates self._thetaDotFiltered when filterAlpha > 0 (stateful path).
-
-        Steps:
-        1. Subtract targetTilt from theta so the controller tracks the
-           configured balance point rather than hard-coded zero. This
-           eliminates the persistent tilt bias that drives phi drift.
-        2. Optionally smooth thetaDot through a first-order IIR low-pass
-           filter to cut high-frequency gyro noise.
-        3. Apply deadbands to suppress jitter near upright.
-        4. Form the composite stabilising variable s.
-        5. Map s through tanh → smooth, bounded velocity command.
-        """
-        # Step 1: balance-point offset. A non-zero targetTilt means the robot
-        # balances at a slight lean rather than perfectly vertical; subtracting
-        # it shifts the zero of the restoring law to that lean angle.
+    def _PrepareTiltTerms(self, theta, thetaDot):
+        """Prepare the tilt channels once for a control step."""
         theta_error = theta - self._targetTilt
 
-        # Step 2: optional IIR low-pass on thetaDot.
-        # alpha=0 → passthrough (no state, no phase lag).
-        # alpha=0.2 → light noise filter, cutoff ≈ 25 Hz (minimal phase lag).
         if self._filterAlpha > 0.0:
             self._thetaDotFiltered = (
                 self._filterAlpha * self._thetaDotFiltered
@@ -264,27 +264,63 @@ class NonLinearController(ControllerBase):
         else:
             thetaDot_in = thetaDot
 
-        # Step 3: deadbands — suppress sensor jitter on tilt channels only
-        theta_db    = self._ApplyDeadband(theta_error, self._thetaDeadband)
+        theta_db = self._ApplyDeadband(theta_error, self._thetaDeadband)
         thetaDot_db = self._ApplyDeadband(thetaDot_in, self._thetaDotDeadband)
+        return theta_db, thetaDot_db
 
-        # Step 4: composite stabilising variable.
-        # Tilt terms (kTheta, kThetaDot) dominate — they correct the primary
-        # instability. Wheel terms (kPhi, kPhiDot) are weak secondary drift
-        # suppressors; their negative sign opposes persistent displacement.
+    def _EvaluateCompositeCommand(self, theta_db, thetaDot_db, phi, phiDot):
+        """Evaluate the tanh command from prepared tilt terms and wheel state."""
+
         s = (
-            self._kTheta    * theta_db
+            self._kTheta * theta_db
             + self._kThetaDot * thetaDot_db
-            - self._kPhi    * phi
+            - self._kPhi * phi
             - self._kPhiDot * phiDot
         )
 
-        # Smooth bounded velocity command.
-        # tanh(s/sScale) ∈ (-1, 1); scaled by uSoftMax it stays within the
-        # motor rate limit without any discontinuous clipping.
         if self._sScale <= 0.0:
             return 0.0
         return self._uSoftMax * _Tanh(s / self._sScale)
+
+    def _PredictWheelStateOneStep(self, phi, phiDot, command):
+        """Predict ``(phi, phiDot)`` one controller step ahead.
+
+        First-order actuator model:
+
+            d(phiDot)/dt = (u - phiDot) / tau
+            d(phi)/dt = phiDot
+
+        The prediction horizon is the outer-loop control period ``dt``. Using
+        a one-step horizon makes the compensation strong enough to acknowledge
+        command lag without over-projecting the wheel drift terms.
+        """
+        if self._actuatorTau <= 0.0 or self._controlDt <= 0.0:
+            return phi, phiDot
+
+        tau = self._actuatorTau
+        alpha = self._controlDt / tau
+        if alpha > 1.0:
+            alpha = 1.0
+        phiDot_pred = phiDot + alpha * (command - phiDot)
+        phi_pred = phi + self._controlDt * phiDot_pred
+        return phi_pred, phiDot_pred
+
+    def _ComputeVelocityCommand(self, theta, thetaDot, phi, phiDot):
+        """Evaluate the lag-aware tanh composite-variable control law."""
+        theta_db, thetaDot_db = self._PrepareTiltTerms(theta, thetaDot)
+
+        provisionalCommand = self._EvaluateCompositeCommand(theta_db, thetaDot_db, phi, phiDot)
+        provisionalCommand = self._ClampCommand(provisionalCommand)
+
+        if self._actuatorTau <= 0.0 or (self._kPhi == 0.0 and self._kPhiDot == 0.0):
+            return provisionalCommand
+
+        phi_pred, phiDot_pred = self._PredictWheelStateOneStep(
+            phi,
+            phiDot,
+            provisionalCommand,
+        )
+        return self._EvaluateCompositeCommand(theta_db, thetaDot_db, phi_pred, phiDot_pred)
 
     def _ClampCommand(self, command):
         """Hard saturation backstop at the motor rate limit.
@@ -304,9 +340,9 @@ class NonLinearController(ControllerBase):
         3. Apply hard saturation to [-maxWheelRate, +maxWheelRate].
         4. Return equal left/right commands for pure sagittal balance.
 
-        The controller is stateless: each call depends only on the current
-        state, not on any internal dynamics. This makes it safe under actuator
-        saturation and well-defined after transient disturbances.
+        The controller is stateful only through the optional thetaDot filter.
+        The actuator-lag compensation itself is algebraic: it uses the current
+        state plus a provisional command to anticipate the wheel-state lag.
         """
         if not state.valid:
             return ControlOutput.Stop(mode=ControlMode.Velocity, timestamp=state.timestamp)

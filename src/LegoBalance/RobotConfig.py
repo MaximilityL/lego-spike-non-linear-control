@@ -75,6 +75,7 @@ class ControllerConfig:
     kPhi: float = 0.0                   # weak wheel-position centering gain (rad/s per rad)
     kPhiDot: float = 0.0                # weak wheel-rate damping gain (dimensionless)
     sScale: float = 14.0                # normalisation scale for composite variable (rad)
+    actuatorTau: float = 0.0            # effective wheel-speed time constant in seconds; 0 disables lag compensation
     thetaDotFilterAlpha: float = 0.3    # IIR low-pass coefficient (0.0=off, 0.2=light noise filter)
     thetaDeadband: float = 0.02094395
     thetaDotDeadband: float = 0.61086524
@@ -168,6 +169,8 @@ class RobotConfig:
             raise ValueError("controller.thetaDotDeadband must be non negative")
         if self.controller.sScale <= 0:
             raise ValueError("controller.sScale must be positive")
+        if self.controller.actuatorTau < 0:
+            raise ValueError("controller.actuatorTau must be non negative")
         if not (0.0 <= self.controller.thetaDotFilterAlpha < 1.0):
             raise ValueError("controller.thetaDotFilterAlpha must be in [0.0, 1.0)")
         if self.controller.pidKp < 0:

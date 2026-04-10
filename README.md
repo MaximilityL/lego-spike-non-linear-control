@@ -19,6 +19,7 @@ The project is no longer just scaffolding. The current codebase includes:
 If you are turning this project into a LaTeX report, start with these files:
 
 - [docs/ImplementationReportGuide.md](docs/ImplementationReportGuide.md)
+- [docs/MotorActuatorLagIdentification.md](docs/MotorActuatorLagIdentification.md)
 - [docs/ArchitectureOverview.md](docs/ArchitectureOverview.md)
 - [docs/NonLinearControllerDesignGuide.md](docs/NonLinearControllerDesignGuide.md)
 - [docs/TestStrategy.md](docs/TestStrategy.md)
@@ -167,6 +168,7 @@ lego-spike-non-linear-control/
 │   ├── FutureControlRoadmap.md
 │   ├── HardwareAssumptions.md
 │   ├── ImplementationReportGuide.md
+│   ├── MotorActuatorLagIdentification.md
 │   ├── NonLinearControllerDesignGuide.md
 │   ├── PybricksNotes.md
 │   └── TestStrategy.md
@@ -309,6 +311,8 @@ Current limits to keep in mind:
 
 - [docs/ImplementationReportGuide.md](docs/ImplementationReportGuide.md): report-friendly
   summary and suggested LaTeX structure.
+- [docs/MotorActuatorLagIdentification.md](docs/MotorActuatorLagIdentification.md):
+  the one-motor velocity-step experiment and the inferred actuator time constant.
 - [docs/ArchitectureOverview.md](docs/ArchitectureOverview.md): module boundaries,
   data flow, and execution paths.
 - [docs/NonLinearControllerDesignGuide.md](docs/NonLinearControllerDesignGuide.md):
