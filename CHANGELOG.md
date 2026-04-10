@@ -5,6 +5,51 @@ All notable changes to this project will be documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-04-10
+
+### Added
+- Added a config-selected balance-controller path so the real hub runner, the
+  desktop closed-loop simulation, and the plotting scripts all instantiate the
+  same balancing law from YAML instead of hard-coding the tanh controller in
+  each entrypoint.
+- Added `PidController` as a discrete velocity-command balance law that follows
+  the referenced LEGO pattern closely inside the repo's controller boundary:
+  tilt error around `targetTilt`, a simple accumulated integral term, a
+  difference-based derivative term, and a wheel-position correction term.
+
+### Changed
+- Reframed this branch's balancing setup around controller interchangeability
+  rather than a single control law. `controller.algorithm` now selects between
+  `pid` and the existing `tanh`/`nonlinear` path while preserving the same
+  robot, the same telemetry columns, and the same post-run plots.
+- Made the balance reference part of the shared config contract end to end.
+  The desktop plot/simulation path and the package-backed hub path now both
+  treat `control.targetTilt` as the operating-point reference instead of
+  shifting the state in an entrypoint-specific way.
+- Switched the generated hub-safe runtime, typed config defaults, and parity
+  tests to carry the same controller-selection fields and PID parameters as
+  the desktop YAML loader, so tuning changes propagate through the whole stack
+  without silent drift.
+
+### Fixed
+- Removed a hub-runtime startup bug in the package-backed balance script where
+  the banner relied on `type(...).__name__`, which is not dependable on the
+  SPIKE MicroPython runtime.
+- Added a quiet-zone to the PID tilt path by honoring `thetaDeadband`, so a
+  near-upright P-only experiment does not immediately turn small IMU jitter
+  into wheel twitching.
+- Closed a configuration-consistency gap where dataclass defaults could drift
+  away from `configs/Default.yaml` and cause helper/runtime paths that bypass
+  YAML to behave differently from the main balance flow.
+
+### Tests
+- Added dedicated PID tests covering factory selection, command symmetry,
+  proportional/integral/derivative behavior, saturation, reset semantics, the
+  wheel-position term, and the new deadband behavior near upright.
+- Updated the config, generated-runtime, and end-to-end pipeline tests so they
+  validate the config-selected controller path rather than assuming the
+  nonlinear balance controller is always active.
+
 ## [1.3.2] - 2026-04-10
 
 ### Changed

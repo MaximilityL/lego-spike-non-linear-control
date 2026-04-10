@@ -4,7 +4,7 @@ Desktop side simulation stub. Wires up:
 
 - :class:`LegoBalance.MockAdapters.MockHub` as the toy plant
 - :class:`LegoBalance.StateEstimator` as the estimator
-- :class:`LegoBalance.NonLinearController` as the balancing controller
+- the config-selected balance controller as the balancing controller
 - :class:`LegoBalance.SafetyMonitor` as the safety filter
 - :class:`LegoBalance.DataLogger` as the recorder
 
@@ -23,10 +23,10 @@ from __future__ import annotations
 import math
 from pathlib import Path
 
+from LegoBalance.BalanceControllerFactory import BuildBalanceController
 from LegoBalance.ControlInterfaces import Measurement
 from LegoBalance.DataLogger import DataLogger
 from LegoBalance.MockAdapters import MockHub
-from LegoBalance.NonLinearController import NonLinearController
 from LegoBalance.RobotConfig import LoadConfig, RobotConfig
 from LegoBalance.SafetyMonitor import SafetyMonitor
 from LegoBalance.StateEstimator import StateEstimator
@@ -67,7 +67,7 @@ def Main() -> int:
     config = LoadConfig()
     hub = MockHub()
     estimator = StateEstimator(config)
-    controller = NonLinearController(config)
+    controller = BuildBalanceController(config)
     safety = SafetyMonitor(config)
     logger = DataLogger(bufferSize=int(SIM_DURATION_SEC / SIM_DT_SEC) + 16)
 

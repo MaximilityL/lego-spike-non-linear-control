@@ -61,22 +61,30 @@ class ControlConfig:
     maxTiltRate: float = 10.0
     maxWheelRate: float = 17.44
     watchdogTimeout: float = 0.2
-    targetTilt: float = -0.012
+    targetTilt: float = -0.019
 
 
 @dataclass
 class ControllerConfig:
-    """Tuning constants for the tanh composite-variable balancing controller."""
+    """Tuning constants for the balance controller selected by config."""
 
-    gravityCompGain: float = 0.5        # preserved for backward compat; unused by tanh law
+    algorithm: str = "pid"
+    gravityCompGain: float = 0.5        # preserved for backward compat; unused by balance controllers
     kTheta: float = 75.0                # dominant tilt gain (rad/s per rad)
     kThetaDot: float = 4.5              # tilt-rate damping gain (rad/s per rad/s)
-    kPhi: float = 0.04                  # weak wheel-position centering gain (rad/s per rad)
-    kPhiDot: float = 0.35               # weak wheel-rate damping gain (dimensionless)
+    kPhi: float = 0.0                   # weak wheel-position centering gain (rad/s per rad)
+    kPhiDot: float = 0.0                # weak wheel-rate damping gain (dimensionless)
     sScale: float = 14.0                # normalisation scale for composite variable (rad)
     thetaDotFilterAlpha: float = 0.3    # IIR low-pass coefficient (0.0=off, 0.2=light noise filter)
     thetaDeadband: float = 0.02094395
     thetaDotDeadband: float = 0.61086524
+    pidKp: float = 11.0                 # proportional gain, matching the referenced example
+    pidKi: float = 4.2                  # integral gain, matching the referenced example
+    pidKd: float = 92.0                 # derivative gain, matching the referenced example
+    pidKs: float = -0.6                 # wheel-position correction gain from the example
+    pidIntegralStep: float = 0.25       # discrete integral increment scale from the example
+    pidIntegralLimit: float = 50.0      # simple anti-windup clamp on the integral state
+    pidPositionTargetDeg: float = 0.0   # target wheel position used by the start term
 
 
 @dataclass
@@ -89,7 +97,7 @@ class DriveConfig:
     """
 
     loopPeriodMs: int = 20
-    printEveryN: int = 5
+    printEveryN: int = 20
     stopDurationMs: int = 50
     driveDurationMs: int = 5000
     testSpeed: float = 17.44
@@ -144,6 +152,8 @@ class RobotConfig:
             raise ValueError("imu.tiltSign must be +1 or -1")
         if self.controller.gravityCompGain < 0:
             raise ValueError("controller.gravityCompGain must be non negative")
+        if str(self.controller.algorithm).strip().lower() not in ("tanh", "nonlinear", "pid"):
+            raise ValueError("controller.algorithm must be 'tanh', 'nonlinear', or 'pid'")
         if self.controller.kTheta < 0:
             raise ValueError("controller.kTheta must be non negative")
         if self.controller.kThetaDot < 0:
@@ -160,6 +170,16 @@ class RobotConfig:
             raise ValueError("controller.sScale must be positive")
         if not (0.0 <= self.controller.thetaDotFilterAlpha < 1.0):
             raise ValueError("controller.thetaDotFilterAlpha must be in [0.0, 1.0)")
+        if self.controller.pidKp < 0:
+            raise ValueError("controller.pidKp must be non negative")
+        if self.controller.pidKi < 0:
+            raise ValueError("controller.pidKi must be non negative")
+        if self.controller.pidKd < 0:
+            raise ValueError("controller.pidKd must be non negative")
+        if self.controller.pidIntegralStep < 0:
+            raise ValueError("controller.pidIntegralStep must be non negative")
+        if self.controller.pidIntegralLimit < 0:
+            raise ValueError("controller.pidIntegralLimit must be non negative")
         if self.drive.testSpeed < 0:
             raise ValueError("drive.testSpeed must be non negative")
         if self.drive.loopPeriodMs <= 0:

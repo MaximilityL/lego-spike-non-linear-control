@@ -2,10 +2,11 @@
 
 Package-backed real balancing run for the SPIKE Prime hub under Pybricks.
 
-This script imports the shared LegoBalance estimator, nonlinear controller,
-safety monitor, unit conversions, and generated hub-safe config helper. It is
-the package-backed counterpart of the desktop closed-loop balance simulation,
-but it runs against the real hub IMU and the real wheel motors.
+This script imports the shared LegoBalance estimator, config-selected balance
+controller, safety monitor, unit conversions, and generated hub-safe config
+helper. It is the package-backed counterpart of the desktop closed-loop
+balance simulation, but it runs against the real hub IMU and the real wheel
+motors.
 
 Run it through the desktop plotter:
 
@@ -23,9 +24,9 @@ from pybricks.parameters import Button, Port
 from pybricks.pupdevices import Motor
 from pybricks.tools import StopWatch, wait
 
+from LegoBalance.BalanceControllerFactory import BuildBalanceController
 from LegoBalance.ControlInterfaces import Measurement
 from LegoBalance.HubDriveSmokeRuntime import DefaultConfig
-from LegoBalance.NonLinearController import NonLinearController
 from LegoBalance.SafetyMonitor import SafetyMonitor
 from LegoBalance.StateEstimator import StateEstimator
 from LegoBalance.Units import DegPerSecToRadPerSec, DegToRad, RadPerSecToDegPerSec, RadToDeg
@@ -98,16 +99,30 @@ def RunVelocity(motor, forwardSign, encoderSign, commandRadPerSec):
     motor.run(forwardSign * encoderSign * RadPerSecToDegPerSec(commandRadPerSec))
 
 
-def PrintBanner(config, loopPeriodMs, telemetryEveryN):
+def ControllerLabel(config, controller):
+    algorithm = str(getattr(config.controller, "algorithm", "")).strip().lower()
+    if algorithm == "pid":
+        return "PidController"
+    if algorithm in ("tanh", "nonlinear"):
+        return "NonLinearController"
+    controllerClass = getattr(controller, "__class__", None)
+    name = getattr(controllerClass, "__name__", "")
+    if name:
+        return name
+    return "BalanceController"
+
+
+def PrintBanner(config, loopPeriodMs, telemetryEveryN, controller):
+    controllerName = ControllerLabel(config, controller)
     print("============================================================")
     print(" HubPackageBalance : real package-backed balancing run")
-    print(" This script uses the shared NonLinearController on the hub.")
+    print(" This script uses the shared balance controller selected by config.")
     print(" Start with the robot near upright and be ready to catch it.")
     print(" Press the center button at any time to stop cleanly.")
     print("============================================================")
     print(" Package import:")
+    print("   from LegoBalance.BalanceControllerFactory import BuildBalanceController")
     print("   from LegoBalance.StateEstimator import StateEstimator")
-    print("   from LegoBalance.NonLinearController import NonLinearController")
     print("   from LegoBalance.SafetyMonitor import SafetyMonitor")
     print("   from LegoBalance.HubDriveSmokeRuntime import DefaultConfig")
     print(" Config:")
@@ -124,19 +139,33 @@ def PrintBanner(config, loopPeriodMs, telemetryEveryN):
     print(f"   forward sign        : {config.motors.forwardSign}")
     print(f"   left encoder sign   : {config.motors.leftEncoderSign}")
     print(f"   right encoder sign  : {config.motors.rightEncoderSign}")
-    print(" Controller gains (NonLinearController):")
-    print(f"   kTheta              : {config.controller.kTheta}")
-    print(f"   kThetaDot           : {config.controller.kThetaDot}")
-    print(f"   kPhi                : {config.controller.kPhi}")
-    print(f"   kPhiDot             : {config.controller.kPhiDot}")
-    print(f"   sScale              : {config.controller.sScale}")
-    print(f"   thetaDotFilterAlpha : {config.controller.thetaDotFilterAlpha}")
-    print(f"   thetaDeadband       : {RadToDeg(config.controller.thetaDeadband):.2f} deg")
-    print(f"   thetaDotDeadband    : {RadPerSecToDegPerSec(config.controller.thetaDotDeadband):.2f} deg/s")
-    kEff = config.control.maxWheelRate * config.controller.kTheta / config.controller.sScale
-    dEff = config.control.maxWheelRate * config.controller.kThetaDot / config.controller.sScale
-    print(f"   kTheta_eff          : {kEff:.1f} rad/s per rad")
-    print(f"   kThetaDot_eff       : {dEff:.1f} (rad/s)/(rad/s)")
+    print(f" Controller selected   : {controllerName}")
+    print(f" Controller algorithm  : {config.controller.algorithm}")
+    if str(config.controller.algorithm).strip().lower() == "pid":
+        print(" Controller gains (PidController):")
+        print(f"   pidKp               : {config.controller.pidKp}")
+        print(f"   pidKi               : {config.controller.pidKi}")
+        print(f"   pidKd               : {config.controller.pidKd}")
+        print(f"   pidKs               : {config.controller.pidKs}")
+        print(f"   pidIntegralStep     : {config.controller.pidIntegralStep}")
+        print(f"   pidIntegralLimit    : {config.controller.pidIntegralLimit}")
+        print(f"   pidPositionTargetDeg: {config.controller.pidPositionTargetDeg}")
+    else:
+        print(" Controller gains (NonLinearController):")
+        print(f"   kTheta              : {config.controller.kTheta}")
+        print(f"   kThetaDot           : {config.controller.kThetaDot}")
+        print(f"   kPhi                : {config.controller.kPhi}")
+        print(f"   kPhiDot             : {config.controller.kPhiDot}")
+        print(f"   sScale              : {config.controller.sScale}")
+        print(f"   thetaDotFilterAlpha : {config.controller.thetaDotFilterAlpha}")
+        print(f"   thetaDeadband       : {RadToDeg(config.controller.thetaDeadband):.2f} deg")
+        print(
+            f"   thetaDotDeadband    : {RadPerSecToDegPerSec(config.controller.thetaDotDeadband):.2f} deg/s"
+        )
+        kEff = config.control.maxWheelRate * config.controller.kTheta / config.controller.sScale
+        dEff = config.control.maxWheelRate * config.controller.kThetaDot / config.controller.sScale
+        print(f"   kTheta_eff          : {kEff:.1f} rad/s per rad")
+        print(f"   kThetaDot_eff       : {dEff:.1f} (rad/s)/(rad/s)")
     print(" Post-run diagnostic plot:")
     print("   python scripts/PlotHubPackageBalance.py")
     print("============================================================")
@@ -155,7 +184,7 @@ def Main():
     leftMotor = Motor(MotorPort(config.motors.leftPort))
     rightMotor = Motor(MotorPort(config.motors.rightPort))
     estimator = StateEstimator(config)
-    controller = NonLinearController(config)
+    controller = BuildBalanceController(config)
     safety = SafetyMonitor(config)
 
     leftMotor.reset_angle(0)
@@ -163,7 +192,7 @@ def Main():
     estimator.Reset()
     controller.Reset()
 
-    PrintBanner(config, loopPeriodMs, telemetryEveryN)
+    PrintBanner(config, loopPeriodMs, telemetryEveryN, controller)
     print("Starting in 1.5 s. Hold the robot near upright NOW.")
     wait(START_DELAY_MS)
 

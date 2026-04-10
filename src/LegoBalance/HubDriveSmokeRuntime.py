@@ -53,20 +53,28 @@ class ControlConfig:
         self.maxTiltRate = 10.0
         self.maxWheelRate = 17.44
         self.watchdogTimeout = 0.2
-        self.targetTilt = -0.019
+        self.targetTilt = -0.0225
 
 
 class ControllerConfig:
     def __init__(self):
+        self.algorithm = 'pid'
         self.gravityCompGain = 0.5
         self.kTheta = 75.0
-        self.kThetaDot = 4.5
-        self.kPhi = 0.04
-        self.kPhiDot = 0.35
+        self.kThetaDot = 40.5
+        self.kPhi = 1.0
+        self.kPhiDot = 1.0
         self.sScale = 14.0
         self.thetaDotFilterAlpha = 0.3
-        self.thetaDeadband = 0.02094395
-        self.thetaDotDeadband = 0.61086524
+        self.thetaDeadband = 0.01
+        self.thetaDotDeadband = 0.31086524
+        self.pidKp = 200.0
+        self.pidKi = 5.0
+        self.pidKd = 80.0
+        self.pidKs = -0.6
+        self.pidIntegralStep = 0.25
+        self.pidIntegralLimit = 50.0
+        self.pidPositionTargetDeg = 0.0
 
 
 class DriveConfig:

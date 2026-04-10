@@ -169,9 +169,9 @@ def test_ComputeAppliesConfiguredQuietDeadbands():
 
 
 def test_ComputeZeroStateProducesZeroCommand():
-    """Zero state maps to s = 0 → tanh(0) = 0 → zero command.
-    targetTilt = -0.001 is within the thetaDeadband so it does not affect this."""
+    """Zero state maps to s = 0 → tanh(0) = 0 → zero command."""
     config = LoadConfig(applyLocalOverride=False)
+    config.control.targetTilt = 0.0
     controller = NonLinearController(config)
     output = controller.Compute(_BuildValidState())
     assert output.leftCommand == pytest.approx(0.0)

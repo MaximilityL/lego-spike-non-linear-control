@@ -22,6 +22,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import copy
 import math
 import os
 import sys
@@ -41,11 +42,10 @@ MPLCONFIGDIR = Path("/tmp/matplotlib-legobalance")
 MPLCONFIGDIR.mkdir(parents=True, exist_ok=True)
 os.environ.setdefault("MPLCONFIGDIR", str(MPLCONFIGDIR))
 
-from LegoBalance.BalanceState import BalanceState
+from LegoBalance.BalanceControllerFactory import BuildBalanceController
 from LegoBalance.ControlInterfaces import Measurement
 from LegoBalance.DataLogger import DataLogger
 from LegoBalance.MockAdapters import MockHub
-from LegoBalance.NonLinearController import NonLinearController
 from LegoBalance.RobotConfig import DEFAULT_CONFIG_PATH, LoadConfig, RobotConfig
 from LegoBalance.SafetyMonitor import SafetyMonitor
 from LegoBalance.StateEstimator import StateEstimator
@@ -140,26 +140,6 @@ def BuildMeasurement(hub: MockHub, config: RobotConfig, currentTimeSec: float) -
     )
 
 
-def BuildControllerState(state: BalanceState, tiltReferenceRad: float) -> BalanceState:
-    """Return the state presented to the controller.
-
-    The controller itself is designed around the upright equilibrium
-    ``theta = 0``. This helper keeps the package boundary untouched while
-    allowing the plotting script to visualize constant-reference runs by
-    shifting the tilt state before it enters the controller.
-    """
-    if tiltReferenceRad == 0.0:
-        return state
-    return BalanceState(
-        tilt=state.tilt - tiltReferenceRad,
-        tiltRate=state.tiltRate,
-        phi=state.phi,
-        phiDot=state.phiDot,
-        timestamp=state.timestamp,
-        valid=state.valid,
-    )
-
-
 def RunClosedLoopSimulation(
     config: RobotConfig,
     durationSec: float,
@@ -170,8 +150,10 @@ def RunClosedLoopSimulation(
     """Run the package-backed desktop closed loop and return the log."""
     hub = MockHub()
     estimator = StateEstimator(config)
-    controller = NonLinearController(config)
-    safety = SafetyMonitor(config)
+    controllerConfig = copy.deepcopy(config)
+    controllerConfig.control.targetTilt = tiltReferenceRad
+    controller = BuildBalanceController(controllerConfig)
+    safety = SafetyMonitor(controllerConfig)
     logger = DataLogger(bufferSize=int(math.ceil(durationSec / dtSec)) + 16)
 
     hub.SetInitialTilt(initialTiltRad)
@@ -182,8 +164,7 @@ def RunClosedLoopSimulation(
     for _ in range(steps):
         measurement = BuildMeasurement(hub, config, timeSec)
         actualState = estimator.Update(measurement)
-        controllerState = BuildControllerState(actualState, tiltReferenceRad)
-        rawCommand = controller.Compute(controllerState)
+        rawCommand = controller.Compute(actualState)
         safeCommand = safety.Check(actualState, rawCommand, currentTime=timeSec)
 
         logger.Record(

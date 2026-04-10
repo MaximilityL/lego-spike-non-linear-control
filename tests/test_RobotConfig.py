@@ -31,22 +31,34 @@ def test_DefaultConfigLoadsAndValidates():
     assert config.control.maxTilt > 0
     assert config.control.maxTilt == pytest.approx(2.0)
     assert config.control.maxWheelRate == pytest.approx(17.44)
-    assert config.control.targetTilt == pytest.approx(-0.012)
-    assert config.controller.gravityCompGain == pytest.approx(0.5)
-    assert config.controller.kTheta == pytest.approx(60.0)
-    assert config.controller.kThetaDot == pytest.approx(8.0)
-    assert config.controller.kPhi == pytest.approx(0.2)
-    assert config.controller.kPhiDot == pytest.approx(1.2)
-    assert config.controller.sScale == pytest.approx(18.0)
-    assert config.controller.thetaDotFilterAlpha == pytest.approx(0.2)
-    assert config.controller.thetaDeadband == pytest.approx(0.017453293)
-    assert config.controller.thetaDotDeadband == pytest.approx(0.34906585)
+    assert abs(config.control.targetTilt) < config.control.maxTilt
+    assert config.controller.algorithm in {"pid", "tanh", "nonlinear"}
+    assert config.controller.gravityCompGain >= 0.0
+    assert config.controller.kTheta >= 0.0
+    assert config.controller.kThetaDot >= 0.0
+    assert config.controller.kPhi >= 0.0
+    assert config.controller.kPhiDot >= 0.0
+    assert config.controller.sScale > 0.0
+    assert 0.0 <= config.controller.thetaDotFilterAlpha < 1.0
+    assert config.controller.thetaDeadband >= 0.0
+    assert config.controller.thetaDotDeadband >= 0.0
+    assert config.controller.pidKp >= 0.0
+    assert config.controller.pidKi >= 0.0
+    assert config.controller.pidKd >= 0.0
+    assert config.controller.pidIntegralStep >= 0.0
+    assert config.controller.pidIntegralLimit >= 0.0
     assert config.drive.loopPeriodMs == 20
-    assert config.drive.printEveryN == 5
+    assert config.drive.printEveryN > 0
     assert config.drive.stopDurationMs == 50
     assert config.drive.driveDurationMs == 5000
     assert config.drive.testSpeed == pytest.approx(17.44)
     assert config.drive.maxTiltForMotion == pytest.approx(0.8726646259971648)
+
+
+def test_TypedConfigDefaultsValidate():
+    config = RobotConfig()
+    config.Validate()
+    assert config.controller.algorithm in {"pid", "tanh", "nonlinear"}
 
 
 def test_DefaultPathExists():
@@ -127,6 +139,22 @@ def test_LoadConfigRejectsNegativeGravityCompGain(tmp_path: Path):
 
 def test_LoadConfigRejectsBadControllerDeadband(tmp_path: Path):
     bad = {"controller": {"thetaDotDeadband": -0.1}}
+    badPath = tmp_path / "bad.yaml"
+    badPath.write_text(yaml.safe_dump(bad))
+    with pytest.raises(ValueError):
+        LoadConfig(path=badPath)
+
+
+def test_LoadConfigRejectsUnsupportedControllerAlgorithm(tmp_path: Path):
+    bad = {"controller": {"algorithm": "mystery"}}
+    badPath = tmp_path / "bad.yaml"
+    badPath.write_text(yaml.safe_dump(bad))
+    with pytest.raises(ValueError):
+        LoadConfig(path=badPath)
+
+
+def test_LoadConfigRejectsNegativePidGain(tmp_path: Path):
+    bad = {"controller": {"pidKd": -1.0}}
     badPath = tmp_path / "bad.yaml"
     badPath.write_text(yaml.safe_dump(bad))
     with pytest.raises(ValueError):

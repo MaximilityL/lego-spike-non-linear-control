@@ -10,7 +10,7 @@ controller directly.
 
 import sys
 
-__version__ = "1.3.2"
+__version__ = "1.4.0"
 
 try:
     _PROPERTY_TYPE = property
@@ -29,6 +29,7 @@ _IS_MICROPYTHON = (
 if _IS_MICROPYTHON:
     __all__ = []
 else:
+    from LegoBalance.BalanceControllerFactory import BuildBalanceController
     from LegoBalance.BalanceState import BalanceState, StateBounds
     from LegoBalance.ControlInterfaces import ControlMode, ControlOutput, Measurement
     from LegoBalance.ControllerBase import ControllerBase
@@ -39,6 +40,7 @@ else:
     from LegoBalance.LyapunovController import LyapunovController
     from LegoBalance.MotorInterface import MotorInterface
     from LegoBalance.NonLinearController import NonLinearController
+    from LegoBalance.PidController import PidController
     from LegoBalance.RobotConfig import ControllerConfig, LoadConfig, RobotConfig
     from LegoBalance.SafetyMonitor import SafetyMonitor, SafetyStatus
     from LegoBalance.Saturation import SaturateScalar, SaturateVector
@@ -47,6 +49,7 @@ else:
 
     __all__ = [
         "BalanceState",
+        "BuildBalanceController",
         "ControlMode",
         "ControlOutput",
         "ControllerBase",
@@ -63,6 +66,7 @@ else:
         "Measurement",
         "MotorInterface",
         "NonLinearController",
+        "PidController",
         "RadPerSecToDegPerSec",
         "RadToDeg",
         "RobotConfig",

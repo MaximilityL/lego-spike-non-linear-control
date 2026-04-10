@@ -7,10 +7,10 @@ interface drift between modules.
 
 from __future__ import annotations
 
+from LegoBalance.BalanceControllerFactory import BuildBalanceController
 from LegoBalance.ControlInterfaces import Measurement
 from LegoBalance.DataLogger import DataLogger
 from LegoBalance.MockAdapters import MockHub
-from LegoBalance.NonLinearController import NonLinearController
 from LegoBalance.RobotConfig import LoadConfig
 from LegoBalance.SafetyMonitor import SafetyMonitor
 from LegoBalance.StateEstimator import StateEstimator
@@ -20,7 +20,7 @@ def test_PipelineRunsForFewIterationsWithoutErrors():
     config = LoadConfig(applyLocalOverride=False)
     hub = MockHub()
     estimator = StateEstimator(config)
-    controller = NonLinearController(config)
+    controller = BuildBalanceController(config)
     safety = SafetyMonitor(config)
     logger = DataLogger(bufferSize=64)
 

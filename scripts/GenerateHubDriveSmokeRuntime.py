@@ -107,6 +107,7 @@ class ControlConfig:
 
 class ControllerConfig:
     def __init__(self):
+        self.algorithm = {_FmtString(config.controller.algorithm)}
         self.gravityCompGain = {_FmtFloat(config.controller.gravityCompGain)}
         self.kTheta = {_FmtFloat(config.controller.kTheta)}
         self.kThetaDot = {_FmtFloat(config.controller.kThetaDot)}
@@ -116,6 +117,13 @@ class ControllerConfig:
         self.thetaDotFilterAlpha = {_FmtFloat(config.controller.thetaDotFilterAlpha)}
         self.thetaDeadband = {_FmtFloat(config.controller.thetaDeadband)}
         self.thetaDotDeadband = {_FmtFloat(config.controller.thetaDotDeadband)}
+        self.pidKp = {_FmtFloat(config.controller.pidKp)}
+        self.pidKi = {_FmtFloat(config.controller.pidKi)}
+        self.pidKd = {_FmtFloat(config.controller.pidKd)}
+        self.pidKs = {_FmtFloat(config.controller.pidKs)}
+        self.pidIntegralStep = {_FmtFloat(config.controller.pidIntegralStep)}
+        self.pidIntegralLimit = {_FmtFloat(config.controller.pidIntegralLimit)}
+        self.pidPositionTargetDeg = {_FmtFloat(config.controller.pidPositionTargetDeg)}
 
 
 class DriveConfig:

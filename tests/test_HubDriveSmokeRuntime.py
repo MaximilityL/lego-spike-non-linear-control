@@ -38,14 +38,30 @@ def test_HubDefaultConfigMatchesDesktopDefaultConfig():
     assert hub.imu.tiltSign == desktop.imu.tiltSign
     assert hub.imu.zeroOffset == pytest.approx(desktop.imu.zeroOffset)
     assert hub.control.targetTilt == pytest.approx(desktop.control.targetTilt)
+    assert hub.controller.algorithm == desktop.controller.algorithm
     assert hub.controller.gravityCompGain == pytest.approx(desktop.controller.gravityCompGain)
     assert hub.controller.kTheta == pytest.approx(desktop.controller.kTheta)
     assert hub.controller.kThetaDot == pytest.approx(desktop.controller.kThetaDot)
     assert hub.controller.kPhi == pytest.approx(desktop.controller.kPhi)
     assert hub.controller.kPhiDot == pytest.approx(desktop.controller.kPhiDot)
+    assert hub.controller.sScale == pytest.approx(desktop.controller.sScale)
+    assert hub.controller.thetaDotFilterAlpha == pytest.approx(
+        desktop.controller.thetaDotFilterAlpha
+    )
     assert hub.controller.thetaDeadband == pytest.approx(desktop.controller.thetaDeadband)
     assert hub.controller.thetaDotDeadband == pytest.approx(
         desktop.controller.thetaDotDeadband
+    )
+    assert hub.controller.pidKp == pytest.approx(desktop.controller.pidKp)
+    assert hub.controller.pidKi == pytest.approx(desktop.controller.pidKi)
+    assert hub.controller.pidKd == pytest.approx(desktop.controller.pidKd)
+    assert hub.controller.pidKs == pytest.approx(desktop.controller.pidKs)
+    assert hub.controller.pidIntegralStep == pytest.approx(desktop.controller.pidIntegralStep)
+    assert hub.controller.pidIntegralLimit == pytest.approx(
+        desktop.controller.pidIntegralLimit
+    )
+    assert hub.controller.pidPositionTargetDeg == pytest.approx(
+        desktop.controller.pidPositionTargetDeg
     )
     assert hub.drive.loopPeriodMs == desktop.drive.loopPeriodMs
     assert hub.drive.printEveryN == desktop.drive.printEveryN
