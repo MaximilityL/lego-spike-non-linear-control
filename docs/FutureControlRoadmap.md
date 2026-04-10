@@ -1,112 +1,96 @@
 # Future Control Roadmap
 
-This document is the bridge between the current scaffold and a real balancing controller.
-The canonical controller module is now `src/LegoBalance/NonLinearController.py`. The old
-`LyapunovController.py` name remains only as a compatibility alias.
+This roadmap starts from the current state of the repository, where a real
+balance controller already exists.
 
-The first intended implementation is still Lyapunov-based. The broader module name exists
-so the repo can host other nonlinear designs later without another rename.
+## 1. What Is Already In Place
 
-## 1. Implemented State And Plant Convention
+The current control stack already includes:
 
-The current estimator produces:
+- measured sign and offset conventions in `configs/Default.yaml`,
+- a minimal estimator that produces `[theta, thetaDot, phi, phiDot]`,
+- two balance controllers behind one factory interface,
+- a safety monitor with watchdog and tilt limits,
+- desktop closed-loop simulation,
+- package-backed balance and drive runs on the real hub,
+- plotting tools for post-run analysis.
 
-```text
-x = [theta, thetaDot, phi, phiDot]^T
-```
+That means the next work is mostly about improving controller quality and
+hardware validation, not building the pipeline from scratch.
 
-where:
+## 2. Near-Term Priorities
 
-- `theta` is body tilt around the wheel axis, in radians, with `theta = 0` upright.
-- `thetaDot` is body tilt rate in rad/s.
-- `phi` is mean wheel rotation in radians after encoder sign correction.
-- `phiDot` is mean wheel rotation rate in rad/s.
+### 2.1. Systematic hardware tuning
 
-The translational pair `p` and `pDot` is derived only when needed:
+The tanh controller is implemented, but hardware tuning is still empirical.
+The next high-value task is a repeatable tuning procedure:
 
-```text
-p = r * phi
-pDot = r * phiDot
-```
+- log multiple real balance runs,
+- compare successful and failed runs,
+- tune `targetTilt`, `kTheta`, `kThetaDot`, and `sScale` systematically,
+- compare the nonlinear and PID controllers under the same conditions.
 
-That choice is deliberate. It keeps the core estimator close to the encoders and avoids
-hard-wiring the control state to a wheel-radius calibration before that value is trusted.
+### 2.2. Better experiment logging
 
-## 2. Control Objective
+The project already logs state and command traces. The next step is to make
+those traces easier to compare across runs:
 
-The balancing controller should stabilize the upright equilibrium while prioritizing body
-tilt over wheel motion:
+- save metadata with each run,
+- keep a run log with controller gains and battery state,
+- build side-by-side plots for different tuning sets.
 
-- Drive `theta -> 0`.
-- Drive `thetaDot -> 0`.
-- Optionally regulate `phi` / `phiDot`, or the derived `p` / `pDot`, with weaker weight.
-- Return symmetric left/right commands for pure sagittal balance. Yaw control is out of
-  scope for now.
+### 2.3. Cleaner hub-runtime packaging
 
-The output contract is already fixed by `ControlOutput`:
+The generated helper file `LegoBalance.HubDriveSmokeRuntime` now serves both the
+package-backed drive smoke path and the package-backed balance path. Renaming or
+generalizing that helper would make the architecture clearer.
 
-```text
-u = wheel velocity command (rad/s), torque proxy, or duty command
-```
+## 3. Medium-Term Control Improvements
 
-`ControlMode.Velocity` is the easiest first target because Pybricks `Motor.run` already
-provides the inner motor loop.
+### 3.1. Stronger state estimation
 
-## 3. Recommended First Design Path
+The estimator is deliberately minimal. Future improvements could include:
 
-1. Verify the signs, units, and chassis parameters in `configs/Default.yaml`.
-2. Derive or identify the planar inverted-pendulum model around the upright equilibrium.
-3. Start with a baseline stabilizer on the implemented state.
-4. If the design is Lyapunov-based, a common first pass is:
+- complementary fusion between angle and gyro integration,
+- explicit bias estimation,
+- simple filtering on wheel-rate estimates,
+- robustness to wheel slip.
 
-```text
-V(x) = (1/2) x^T P x
-u = -K x
-```
+These changes should preserve the same `BalanceState` boundary if possible.
 
-with `P` positive definite and `K` chosen so the closed-loop derivative is negative in a
-useful operating region.
+### 3.2. Smarter control policies
 
-5. Implement the law inside `NonLinearController.Compute`.
-6. Add saturation explicitly before returning a command.
-7. Validate on the desktop before considering hub deployment.
+Possible control upgrades include:
 
-Nothing in the scaffold forces Lyapunov specifically, but the current placeholder
-docstring and this roadmap both assume that is the most likely first implementation.
+- gain scheduling between small-angle and recovery regions,
+- a recovery mode for larger disturbances,
+- a more explicitly model-based nonlinear law once hardware parameters are
+  measured with confidence,
+- better anti-drift logic once long-run balance is stable.
 
-## 4. Where The Real Code Plugs In
+### 3.3. Command-mode experiments
 
-- **Estimator.** `StateEstimator.Update(measurement)` already returns the controller input.
-- **Controller.** `NonLinearController.Compute(state)` is the one method that needs the
-  real balancing law.
-- **Safety.** `SafetyMonitor.Check(state, control, currentTime=...)` already gates the
-  result before it reaches the motors.
-- **Simulation.** `examples/ClosedLoopSimulation.py` already wires estimator, controller,
-  safety, logging, and mock hardware together.
-- **Hub deployment.** The current package-backed hub smoke path still uses
-  `DriveCommandController`. A real balancing deployment will need either a new self-
-  contained Pybricks entrypoint or a shared package path that keeps the controller
-  MicroPython-safe.
+The current default is wheel velocity control because it maps directly to
+Pybricks `Motor.run(...)`. Another path is to evaluate duty-cycle control
+through `Motor.dc(...)`, but that requires additional characterization because
+the relationship to torque is only approximate.
 
-## 5. Validation Sequence
+## 4. Longer-Term System Goals
 
-Use this order:
+Once basic balance is reliable, the next larger features are:
 
-1. Unit-test the controller contract in `tests/test_NonLinearController.py`.
-2. Run the desktop mock loop in `examples/ClosedLoopSimulation.py`.
-3. Add or update offline plots and log analysis if the design needs them.
-4. Only then move toward on-hub execution.
+- yaw and steering control,
+- trajectory tracking,
+- stand-up and recovery routines,
+- online identification of mechanical parameters,
+- more realistic simulation beyond the current toy plant.
 
-If the controller is meant to run from the shared package on the hub, keep the
-implementation limited to MicroPython-safe features: plain `math`, small lists, and
-small matrix code instead of desktop-only dependencies such as `numpy`.
+## 5. Recommended Sequence
 
-## 6. Work Still Outside The Current Scaffold
+The highest-leverage order from here is:
 
-- Estimator fusion beyond the current sign-corrected direct state calculation.
-- System identification for torque constants and friction.
-- Yaw control, steering, or trajectory tracking.
-- Online bias estimation.
-
-Those are all valid future steps, but they are not prerequisites for landing the first
-balancing controller.
+1. stabilize and document repeatable hardware tuning,
+2. compare nonlinear and PID controllers on the real robot,
+3. improve logging and experiment bookkeeping,
+4. strengthen the estimator only where logs show it is limiting control quality,
+5. explore more advanced controllers after the measurement pipeline is trusted.

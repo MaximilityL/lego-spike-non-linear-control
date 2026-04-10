@@ -11,8 +11,8 @@ What it does:
   or ``Stop``.
 * Maps that command to a symmetric left/right wheel velocity using the
   configured drive test speed.
-* Returns a :class:`ControlOutput` in the same shape that the future
-  :class:`NonLinearController` will return, so the rest of the pipeline does
+* Returns a :class:`ControlOutput` in the same shape that the balance
+  controllers return, so the rest of the pipeline does
   not care which controller is in front.
 
 What it does not do:
@@ -26,7 +26,7 @@ What it does not do:
 
 The controller still consumes the :class:`BalanceState` produced by the
 estimator (because :class:`ControllerBase.Compute` takes one), so the loop
-that uses it is exactly the loop that the future balancing controller will
+that uses it is exactly the loop that the main balance controllers also use.
 plug into. Swapping :class:`DriveCommandController` for
 :class:`NonLinearController` is a one line change in application code.
 """
@@ -109,7 +109,7 @@ class DriveCommandController(ControllerBase):
 
         The current state is accepted (and is required by the
         :class:`ControllerBase` interface) so that this controller plugs
-        into the same loop the future balancing controller will. It is not
+        into the same loop the balance controllers use. It is not
         used to alter the command magnitude. The :class:`SafetyMonitor` is
         responsible for refusing motion when the tilt is unsafe.
 

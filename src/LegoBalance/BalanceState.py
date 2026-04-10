@@ -75,7 +75,7 @@ class BalanceState:
 
         Convenience for tests and for any code that wants to treat the state
         as a flat numerical vector. This is the ``[theta, thetaDot, phi, phiDot]``
-        state used by the future balancing controller.
+        state used by the balance controllers in this repository.
         """
         return [self.tilt, self.tiltRate, self.phi, self.phiDot]
 

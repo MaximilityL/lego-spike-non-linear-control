@@ -1,16 +1,16 @@
 """LegoBalance package.
 
-Shared control logic for the LEGO SPIKE inverted pendulum starter project.
-The package avoids importing from ``pybricks``. Desktop-only helpers are kept
-out of the Pybricks import path so hub smoke tests can import the estimator and
-controller directly.
+Shared control logic for the LEGO SPIKE inverted pendulum control stack.
+The package avoids importing from ``pybricks`` directly so the same estimator,
+controller, and safety modules can be tested on desktop and imported from
+package-backed hub runs when they stay MicroPython-safe.
 """
 
 # ruff: noqa: E402
 
 import sys
 
-__version__ = "1.4.0"
+__version__ = "1.4.1"
 
 try:
     _PROPERTY_TYPE = property

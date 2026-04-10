@@ -1,76 +1,115 @@
 # Architecture Overview
 
-This repo is structured so that the balancing controller is the only hard part left to
-implement. The configuration loader, state boundary objects, estimator, safety layer,
-mock hardware, and hub smoke paths already exist.
+This project is organized around one idea: the estimator, controller, safety
+logic, and validation tools should be easy to develop on a laptop, but the same
+runtime shape should still execute honestly on the LEGO SPIKE Prime hub.
 
-## 1. Two Execution Environments
+## 1. Control Objective
 
-- **Desktop side.** Standard CPython. Most design work happens under
-  `src/LegoBalance/`, `tests/`, `examples/`, and `scripts/`. This is where you model,
-  test, document, and iterate quickly.
-- **Hub side.** Pybricks MicroPython on the SPIKE Prime hub. Most files under `hub/`
-  are intentionally self contained. The one package-backed exception is
-  `src/HubPackageDriveSmoke.py`, which imports a MicroPython-safe subset of the
-  `LegoBalance` package plus a generated config helper.
+The system controls a two-wheel inverted pendulum. The immediate control goal is:
 
-The key architectural rule is simple: desktop logic must stay decoupled from
-`pybricks.*`, and hub entrypoints must stay honest about what can actually run on the
-device.
+- stabilize the body around upright,
+- keep the wheels from drifting away indefinitely,
+- enforce software safety limits before motor commands are applied.
 
-## 2. Core Modules
-
-| Layer | Main modules | Responsibility |
-| --- | --- | --- |
-| Config and units | `RobotConfig`, `Units`, `Saturation` | Typed config, unit conversion, and command clamping helpers |
-| Estimation boundary | `ControlInterfaces.Measurement`, `StateEstimator`, `BalanceState` | Convert raw sensor readings into the canonical state |
-| Controllers | `ControllerBase`, `DriveCommandController`, `NonLinearController` | Map state to left/right wheel commands |
-| Safety | `SafetyMonitor` | Arm, gate, and trip before commands reach the motors |
-| Adapters and logging | `MockAdapters`, `HubInterface`, `MotorInterface`, `ImuInterface`, `DataLogger` | Mock hardware, abstract interfaces, and offline analysis |
-
-`src/LegoBalance/LyapunovController.py` still exists only as a backward-compatible alias.
-The canonical balancing-controller module is now `src/LegoBalance/NonLinearController.py`.
-
-## 3. State And Command Boundary
-
-The implemented control state is:
+The canonical state is:
 
 ```text
 x = [theta, thetaDot, phi, phiDot]
 ```
 
-where:
+with:
 
-- `theta` / `tilt` is body pitch in radians.
-- `thetaDot` / `tiltRate` is body pitch rate in rad/s.
-- `phi` is mean wheel rotation in radians after encoder sign correction.
-- `phiDot` is mean wheel rotation rate in rad/s.
+- `theta`: body tilt in radians,
+- `thetaDot`: body tilt rate in rad/s,
+- `phi`: mean wheel rotation in radians,
+- `phiDot`: mean wheel rotation rate in rad/s.
 
-The translational pair `p` and `pDot` is intentionally derived, not stored:
+Linear travel is derived only when needed:
 
 ```text
 p = r * phi
 pDot = r * phiDot
 ```
 
-That keeps the core estimator radius-independent until the wheel radius is trusted.
+## 2. Two Execution Environments
 
-Commands cross the controller boundary as `ControlOutput`. Positive command means forward
-chassis motion / increasing `phi`. The controller does not apply motor mounting signs;
-that is handled by config and adapters below it.
+### Desktop side
 
-## 4. Single Control Step
+Most development happens under normal CPython:
 
-The runtime loop is the same on desktop and on the hub-safe package path:
+- `src/LegoBalance/`
+- `tests/`
+- `examples/`
+- `scripts/`
 
-1. Read sensors and build a `Measurement` in SI units.
-2. Call `StateEstimator.Update(measurement)` to get a `BalanceState`.
-3. Call `controller.Compute(state)` to get a `ControlOutput`.
-4. Pass the result through `SafetyMonitor.Check(...)`.
-5. Apply the safe command to the motors.
-6. Log the state and command for offline analysis.
+This side contains the typed config, estimator, controllers, safety layer,
+logging, plotting, and mock hardware used for regression testing.
 
-In code, that shape looks like this:
+### Hub side
+
+Real hardware runs under Pybricks MicroPython on the SPIKE hub:
+
+- self-contained bring-up and smoke scripts live under `hub/`,
+- package-backed balance and drive runs live under `src/HubPackageBalance.py`
+  and `src/HubPackageDriveSmoke.py`.
+
+The package-backed entrypoints import a MicroPython-safe subset of the shared
+`LegoBalance` package, plus a generated config helper from
+`LegoBalance.HubDriveSmokeRuntime`.
+
+## 3. Why The Split Matters
+
+This split gave the project three practical advantages:
+
+1. We can test most logic without a hub connected.
+2. We can keep hardware-specific sign handling out of the controller itself.
+3. We can reuse the same estimator/controller/safety pipeline in desktop and
+   hub runs instead of maintaining two different control stacks.
+
+## 4. Main Modules
+
+| Layer | Main modules | Responsibility |
+| --- | --- | --- |
+| Configuration | `RobotConfig`, `configs/Default.yaml`, `HubDriveSmokeRuntime` | Load, validate, and mirror robot parameters |
+| State boundary | `ControlInterfaces.Measurement`, `BalanceState`, `StateEstimator` | Convert raw measurements into the canonical state |
+| Balance control | `NonLinearController`, `PidController`, `BalanceControllerFactory` | Compute symmetric wheel commands from the estimated state |
+| Pre-balance motion | `DriveCommandController` | Run forward/backward/stop smoke paths through the same runtime loop |
+| Safety | `SafetyMonitor` | Arm, trip, watchdog, and clamp commands |
+| Hardware abstraction | `MockAdapters`, `HubInterface`, `MotorInterface`, `ImuInterface` | Isolate the hardware boundary from control logic |
+| Logging and analysis | `DataLogger`, plotting scripts under `scripts/` | Record runs and produce offline plots |
+
+## 5. State And Command Boundaries
+
+The estimator applies all sign and calibration corrections before the controller
+sees the state:
+
+```text
+theta    = tiltSign * rawTilt + zeroOffset
+thetaDot = tiltSign * rawTiltRate - gyroBias
+phi      = forwardSign * mean(sign-corrected wheel angles)
+phiDot   = forwardSign * mean(sign-corrected wheel rates)
+```
+
+That means every balance controller receives:
+
+- SI units only,
+- corrected signs only,
+- no direct dependency on Pybricks APIs,
+- no raw degree-based sensor conventions.
+
+Commands leave the controller as a `ControlOutput`:
+
+```text
+u = [leftCommand, rightCommand, mode, timestamp]
+```
+
+For pure sagittal balance the left and right commands are equal. Positive
+command always means forward chassis motion.
+
+## 6. One Control Step
+
+The common control loop is:
 
 ```python
 measurement = MakeMeasurement(...)
@@ -81,36 +120,73 @@ motors.Apply(safeCommand)
 logger.Record(state, safeCommand)
 ```
 
-That loop is already exercised by `examples/ClosedLoopSimulation.py` and by the
-package-backed drive smoke runtime.
+This same shape appears in:
 
-## 5. Current Entry Points
+- `examples/ClosedLoopSimulation.py`,
+- `src/HubPackageBalance.py`,
+- `src/HubPackageDriveSmoke.py`.
 
-- `examples/EstimatorReadout.py`: prints the implemented state without involving a
-  controller.
-- `examples/DriveCommandSmoke.py`: desktop mock run of the forward/stop/backward smoke
-  flow.
-- `examples/ClosedLoopSimulation.py`: mock closed loop using `NonLinearController`,
-  `StateEstimator`, `SafetyMonitor`, and `MockHub`.
-- `hub/HubMain.py`: self-contained Pybricks sensor bring-up and telemetry.
-- `hub/HubDriveSmoke.py`: self-contained Pybricks drive smoke script.
-- `src/HubPackageDriveSmoke.py`: package-backed hub smoke path that imports shared
-  estimator, drive controller, and safety code.
-- `scripts/GenerateHubDriveSmokeRuntime.py`: regenerates
-  `src/LegoBalance/HubDriveSmokeRuntime.py` from `configs/Default.yaml`.
+That reuse is one of the strongest architectural features in the repo. It means
+the project tests the same boundaries on desktop and hardware instead of only
+testing isolated functions.
 
-## 6. Controller Integration Boundary
+## 7. Controller Selection
 
-If someone is implementing the balancing law, the file to edit is
-`src/LegoBalance/NonLinearController.py`.
+`LegoBalance.BalanceControllerFactory.BuildBalanceController(config)` selects the
+active balance controller from `config.controller.algorithm`.
 
-What the rest of the repo guarantees to that class:
+Supported options are:
 
-- It receives a sign-corrected, SI-unit `BalanceState`.
-- It can read physical parameters and limits through `self.config`.
-- It can return either velocity, torque, or duty commands via `ControlOutput.mode`.
-- It does not need to talk to motors directly.
-- It does not need to enforce the final stop/trip logic; `SafetyMonitor` already exists.
+- `nonlinear` or `tanh`: the default tanh composite-variable controller,
+- `pid`: the discrete PID controller.
 
-For the implementation handoff and interaction contract, see
-`docs/NonLinearControllerDesignGuide.md`.
+Because both controllers return the same `ControlOutput`, the runtime code does
+not change when switching controllers.
+
+## 8. Runtime Paths
+
+### Desktop balance simulation
+
+`examples/ClosedLoopSimulation.py` uses `MockHub` as a toy plant and runs the
+same estimator/controller/safety flow as the hardware path. It is useful for
+API validation and coarse sanity checks.
+
+### Package-backed real balance run
+
+`src/HubPackageBalance.py` runs the shared estimator, selected balance
+controller, and safety monitor on the real hub. The companion script
+`scripts/PlotHubPackageBalance.py` launches it, captures telemetry, and plots
+tilt reference, full state, and raw versus applied command.
+
+### Self-contained hub bring-up
+
+Files under `hub/` are minimal Pybricks programs used for fast sensor checks,
+encoder checks, and smoke tests without relying on shared package imports.
+
+## 9. Design Tradeoffs
+
+Several design choices are deliberate:
+
+- The estimator is minimal because sign correctness and unit consistency were
+  more important than estimator sophistication in the first balancing phase.
+- The default nonlinear controller is model-light because LEGO mass, inertia,
+  and center-of-mass estimates are uncertain enough to make aggressive model
+  inversion risky.
+- Safety is its own module because safety logic needs a different failure model
+  than control logic: it should fail to "stop", not fail silently.
+- Package-backed hub runs exist because they test the real shared code path,
+  not just a manually copied standalone script.
+
+## 10. What To Cite In A Report
+
+If you are writing a report from this repository, the clean narrative is:
+
+1. configuration and sign verification define a trustworthy state convention,
+2. `StateEstimator` maps raw IMU and encoder data into
+   `[theta, thetaDot, phi, phiDot]`,
+3. the selected controller maps that state into a symmetric wheel-velocity command,
+4. `SafetyMonitor` is the final gate before motor actuation,
+5. desktop and hub runs share the same logical pipeline.
+
+For a report-friendly outline and equations, see
+`docs/ImplementationReportGuide.md`.

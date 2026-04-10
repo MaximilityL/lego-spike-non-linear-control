@@ -64,7 +64,7 @@ control:
   maxWheelRate: 17.44  # rad/s commanded; 1000 deg/s validated on hub
   # maxWheelRate: 12.0  # rad/s commanded; 1000 deg/s validated on hub
   watchdogTimeout: 0.2        # s without an update before the safety monitor trips
-  targetTilt: -0.0225        # rad, default upright reference for the balance controller
+  targetTilt: -0.0675        # rad, default upright reference for the balance controller
 
 
 # Balancing controller tuning.
@@ -88,16 +88,16 @@ control:
 #   If the robot walks forward, make targetTilt more negative (lean back).
 #   If the robot walks backward, make targetTilt more positive (lean forward).
 controller:
-  algorithm: "pid"            # pid | tanh | nonlinear
+  algorithm: "nonlinear"            # pid | tanh | nonlinear
   gravityCompGain: 0.5        # preserved for backward compat; not used by tanh controller
-  kTheta: 75.0                # tanh-only: dominant tilt gain (rad/s per rad)
-  kThetaDot: 40.5              # tanh-only: tilt-rate damping gain
-  kPhi: 1.0                   # tanh-only: wheel-position centering gain (rad/s per rad)
-  kPhiDot: 1.0                # tanh-only: wheel-rate damping gain (dimensionless)
-  sScale: 14.0                # tanh-only: composite-variable normalisation scale
-  thetaDotFilterAlpha: 0.30   # tanh-only: IIR filter coeff
-  thetaDeadband: 0.01   # tanh-only: rad, ±1.2 deg tilt noise suppression
-  thetaDotDeadband: 0.31086524   # tanh-only: rad/s, ±35 deg/s tilt-rate noise suppression
+  kTheta: 100.0                # tanh-only: dominant tilt gain (rad/s per rad)
+  kThetaDot: 25.0              # tanh-only: tilt-rate damping gain
+  kPhi: 5.0                   # tanh-only: wheel-position centering gain (rad/s per rad)
+  kPhiDot: 5.0                # tanh-only: wheel-rate damping gain (dimensionless)
+  sScale: 40.0                # tanh-only: composite-variable normalisation scale
+  thetaDotFilterAlpha: 0.0   # tanh-only: IIR filter coeff
+  thetaDeadband: 0.00   # tanh-only: rad, ±1.2 deg tilt noise suppression
+  thetaDotDeadband: 0.0   # tanh-only: rad/s, ±35 deg/s tilt-rate noise suppression
   pidKp: 200.0                 # proportional gain from the referenced example
   pidKi: 5.0                  # integral gain from the referenced example
   pidKd: 80.0                 # derivative gain from the referenced example
@@ -112,7 +112,7 @@ controller:
 # autonomous motion.
 drive:
   loopPeriodMs: 20            # hub loop period for the package drive smoke test
-  printEveryN: 20              # emit one telemetry row every N control iterations
+  printEveryN: 50              # emit one telemetry row every N control iterations
   stopDurationMs: 50          # stop leg duration in the smoke schedule
   driveDurationMs: 5000       # forward/backward leg duration in the smoke schedule
   testSpeed: 17.44 #1.74532925199    # rad/s, 100 deg/s forward/backward smoke command

@@ -1,81 +1,79 @@
 # Hardware Assumptions
 
-This document captures every assumption the code makes about the physical robot.
-Whenever you change the chassis or the firmware, re read this file and re verify the
-assumptions before running motors at non trivial duty.
+This document records the physical assumptions the code makes about the robot.
+Whenever the chassis, motor mounting, or hub orientation changes, verify these
+assumptions again before running aggressive balance tests.
 
-## 1. The Hub
+## 1. Hub
 
-- **Hub.** LEGO SPIKE Prime hub (also marketed as the LEGO Education hub).
-- **Firmware.** Pybricks firmware, installed once via
-  [code.pybricks.com](https://code.pybricks.com).
-- **Built in IMU.** The hub has a 6 DOF IMU exposed through `pybricks.hubs.PrimeHub.imu`
-  with at least the following methods:
-  - `imu.tilt()` returns pitch and roll in degrees.
-  - `imu.acceleration()` returns three axis acceleration in mm per s squared.
-  - `imu.angular_velocity()` returns three axis gyro rates in degrees per second.
-  Sign and axis conventions depend on how the hub is mounted on the chassis. See section
-  3 below.
+- **Hub**: LEGO SPIKE Prime hub.
+- **Firmware**: Pybricks, installed through [code.pybricks.com](https://code.pybricks.com).
+- **IMU API**: `PrimeHub.imu` provides tilt and angular velocity data used by the
+  estimator.
+
+The code assumes the hub is mounted consistently enough that one IMU tilt axis
+tracks body lean and can be corrected through:
+
+- `imu.tiltAxis`
+- `imu.tiltSign`
+- `imu.zeroOffset`
+- `imu.gyroBias`
 
 ## 2. Motors
 
-- **Type.** Two SPIKE Prime medium or large angular motors.
-- **Ports.** Defaults are B for the left wheel and A for the right wheel. Override in
-  `configs/Default.yaml`.
-- **API.** `pybricks.pupdevices.Motor` exposing at least:
-  - `Motor(port).angle()` returns the encoder position in degrees.
-  - `Motor(port).speed()` returns the angular speed in deg per second.
-  - `Motor(port).run(speed_deg_per_s)` issues a velocity command.
-  - `Motor(port).dc(percent)` issues a raw duty command in -100..100.
-  - `Motor(port).stop()` releases the motor.
-  - `Motor(port).brake()` brakes the motor.
+- **Type**: two SPIKE angular motors.
+- **Default ports**: left motor on `B`, right motor on `F`.
+- **Command path**: wheel velocity commands are typically applied through
+  `Motor.run(...)` after converting rad/s to deg/s.
 
-The desktop side `Units` module converts between Pybricks degrees and the SI radians
-that the rest of the code uses.
+The balance controllers do not contain motor-mounting sign logic. That is kept
+in config through:
 
-## 3. Mounting And Sign Conventions
+- `motors.forwardSign`
+- `motors.leftEncoderSign`
+- `motors.rightEncoderSign`
 
-The single biggest source of bugs in a balancing robot is a wrong sign. Be explicit.
+## 3. Sign Conventions
 
-- **Body coordinate frame.** Right handed. x points forward, y points to the robot's
-  left, z points up.
-- **Tilt.** Positive tilt means the body is leaning forward. The wheels must roll
-  forward (positive wheel angular velocity in the body frame) to recover.
-- **Wheel rotation state.** Positive `phi` means the wheel base has rolled forward.
-- **Controller output sign.** Positive `ControlOutput.leftCommand` /
-  `ControlOutput.rightCommand` means forward chassis motion. Motor mounting sign flips
-  belong in config and adapter code, not inside the balancing controller.
-- **IMU axis used for tilt.** The pitch axis returned by `imu.tilt()`. The mapping from
-  hub orientation to body pitch depends on whether the hub is mounted upright, on its
-  side, or upside down on the chassis. The `imu.tiltAxis` and `imu.tiltSign` fields in
-  the config let you fix the mapping without editing code.
-- **Wheel encoder direction.** If the motor is mounted facing outward on one side and
-  inward on the other, one of the two will report negative angles for forward motion.
-  Set `motors.leftEncoderSign`, `motors.rightEncoderSign`, and `motors.forwardSign`
-  in the config or hub-side constants, not in the controller.
+These conventions are used throughout the repository:
 
-## 4. Power And Safety
+- positive `theta`: body leans forward,
+- positive `thetaDot`: forward lean is increasing,
+- positive `phi`: wheel base has rolled forward,
+- positive controller command: wheels should drive forward.
 
-- The hub batteries can deliver enough current to spin the wheels fast. Always block the
-  wheels for the first few runs.
-- Pybricks programs can be stopped immediately by pressing the center button on the hub
-  or the stop button in the browser editor. Use this. It is your kill switch.
-- The desktop side `SafetyMonitor` enforces software level limits but cannot help if the
-  hub firmware is unresponsive. Hardware safety is your responsibility.
+Keeping these conventions consistent is more important than any specific choice
+of sign. The code assumes the config has already been adjusted so these meanings
+are true.
 
-## 5. Configuration Is The Source Of Truth
+## 4. State Definition
 
-- `configs/Default.yaml` is the desktop-side source of truth for ports, signs, limits,
-  and geometry.
-- `src/LegoBalance/HubDriveSmokeRuntime.py` is generated from that YAML file for the
-  package-backed hub smoke path.
-- The self-contained Pybricks scripts in `hub/` intentionally mirror the same values by
-  hand. If you change signs or ports, update both the YAML and the relevant hub script.
+The implemented estimator state is:
 
-## 6. What This Scaffold Does Not Assume
+```text
+x = [theta, thetaDot, phi, phiDot]
+```
 
-- It does not assume any particular wheel diameter. You set this in the config.
-- It does not assume any particular center of mass height. You set this in the config.
-- It does not assume any particular battery state. The Pybricks API exposes battery
-  voltage if you want to log it.
-- It does not assume that any specific mounting orientation is correct. You verify it.
+The project intentionally uses wheel rotation as the primary wheel-motion state.
+Linear travel is derived only when needed through the wheel radius.
+
+## 5. Safety And Power
+
+- the hub and motors can move the wheels fast enough to be dangerous on a bench,
+- first runs should be done with the robot restrained or the wheels lifted,
+- the hub center button and the Pybricks stop button are treated as kill switches,
+- software safety is helpful but cannot replace careful bench procedure.
+
+## 6. Configuration Is The Source Of Truth
+
+- `configs/Default.yaml` is the desktop-side source of truth,
+- `LegoBalance.HubDriveSmokeRuntime` is the generated hub-safe mirror used by the
+  package-backed hub entrypoints,
+- self-contained scripts under `hub/` should be kept aligned with those values.
+
+## 7. What The Project Does Not Assume
+
+- It does not assume perfect wheel-radius accuracy.
+- It does not assume perfect center-of-mass estimates.
+- It does not assume the hub orientation is universally correct across builds.
+- It does not assume battery condition is constant between runs.

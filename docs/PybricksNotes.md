@@ -1,136 +1,134 @@
 # Pybricks Notes
 
-Practical notes about using Pybricks for this project. This is not a Pybricks tutorial.
-For that, read the official documentation at
-[docs.pybricks.com](https://docs.pybricks.com).
+Practical notes for running this project on a LEGO SPIKE Prime hub with
+Pybricks.
 
 ## 1. What Pybricks Is
 
-Pybricks replaces the LEGO firmware on the SPIKE Prime hub with an open source
-MicroPython runtime. After flashing, the hub runs Python programs written against the
-`pybricks` API. The original firmware can be restored at any time from the same
-installer page.
+Pybricks replaces the stock LEGO firmware with an open MicroPython runtime. The
+hub then runs Python programs that import from `pybricks.*`.
 
-## 2. Where Pybricks Programs Live
+For this project, Pybricks matters because it lets the control loop execute on
+the hub itself instead of depending on a host computer in the loop.
 
-A Pybricks program is usually a single Python file uploaded to the hub. It cannot import
-from arbitrary places in your filesystem the way a CPython program can. Multi file
-projects are technically possible in recent Pybricks versions, but the simple, reliable,
-beginner friendly path is "one file per program".
+## 2. Hub Program Styles In This Repo
 
-This is why this repo has a `hub/` directory holding short, self contained scripts. The
-normal desktop side `LegoBalance` package is not uploaded to the hub. The one deliberate
-exception is `src/HubPackageDriveSmoke.py`, which imports the shared
-`LegoBalance.StateEstimator`, `DriveCommandController`, and `SafetyMonitor` modules so
-package logic can be tested on hardware. Its hub-safe config helper is generated from
-`configs/Default.yaml` by `scripts/GenerateHubDriveSmokeRuntime.py` before upload.
+This repository uses two hub-program styles.
 
-If you eventually want `NonLinearController` to run through the same shared package path,
-keep that module MicroPython-safe too.
+### Self-contained scripts
 
-## 3. Useful Imports
+Files under `hub/` are short Pybricks programs for:
+
+- sensor bring-up,
+- encoder checks,
+- motor checks,
+- simple smoke tests.
+
+These are easy to upload and debug because they avoid package-import complexity.
+
+### Package-backed scripts
+
+The files:
+
+- `src/HubPackageDriveSmoke.py`
+- `src/HubPackageBalance.py`
+
+import the shared `LegoBalance` estimator/controller/safety logic on the hub.
+They are useful because they exercise the real shared code path rather than a
+manually copied standalone script.
+
+Those entrypoints rely on the generated hub-safe config module
+`LegoBalance.HubDriveSmokeRuntime`, since the hub does not parse YAML directly.
+
+## 3. Useful Pybricks Imports
 
 ```python
 from pybricks.hubs import PrimeHub
+from pybricks.parameters import Button, Port
 from pybricks.pupdevices import Motor
-from pybricks.parameters import Port, Direction, Stop, Color, Button
-from pybricks.tools import wait, StopWatch
+from pybricks.tools import StopWatch, wait
 ```
 
-## 4. Reading The IMU
+## 4. Reading Sensors
+
+Typical sensor access on the hub looks like:
 
 ```python
 hub = PrimeHub()
-pitch_deg, roll_deg = hub.imu.tilt()
-ax, ay, az = hub.imu.acceleration()       # mm/s^2
-gx, gy, gz = hub.imu.angular_velocity()   # deg/s
+pitchDeg, rollDeg = hub.imu.tilt()
+gxDegPerSec, gyDegPerSec, gzDegPerSec = hub.imu.angular_velocity()
+leftAngleDeg = leftMotor.angle()
+leftRateDegPerSec = leftMotor.speed()
 ```
 
-The exact axis to use for your robot's tilt depends on how the hub is mounted. The
-`configs/Default.yaml` `imu.tiltAxis` field is the place to record your choice.
+The shared estimator expects SI units, so hub entrypoints convert degrees to
+radians before building a `Measurement`.
 
 ## 5. Driving Motors
 
+The default control path uses wheel velocity commands:
+
 ```python
-motor = Motor(Port.A)
-motor.run(360)         # 360 deg/s = 1 rev/s
-motor.dc(20)           # 20% duty cycle
-motor.stop()           # release
-motor.brake()          # short the windings
-angle_deg = motor.angle()
-speed_dps = motor.speed()
+motor.run(speed_deg_per_s)
 ```
 
-There is no torque mode in Pybricks today. The closest you have to a torque command is
-`Motor.dc`, which is open loop duty. For a balancing controller you can either:
+This is why the balance controllers return commands in rad/s. The hub-side code
+handles conversion to deg/s just before actuation.
 
-- Use `Motor.run` and treat the motor as a velocity actuator with an inner Pybricks
-  loop. This is what the scaffold defaults to.
-- Use `Motor.dc` and accept that the relationship to torque is approximate. This needs
-  characterization for accurate results.
+`Motor.dc(...)` is still available for future experiments, but it is a weaker
+match to the current controller design because it behaves more like an open-loop
+duty command than a clean velocity interface.
 
 ## 6. Loop Timing
 
-Pybricks does not provide a guaranteed real time scheduler. Use `StopWatch` and `wait`
-to approximate a fixed loop rate:
+Pybricks is not a hard real-time environment, so hub loops approximate a fixed
+rate using `StopWatch` and `wait(...)`.
 
-```python
-sw = StopWatch()
-period_ms = 10
-next_tick = period_ms
-while True:
-    # ... read sensors, compute control, command motors ...
-    while sw.time() < next_tick:
-        wait(1)
-    next_tick += period_ms
-```
+For this project, around 100 Hz is the main operating point for the outer loop.
+That is fast enough for balance experiments while still leaving room for modest
+telemetry and safety checks.
 
-100 Hz is realistic on the SPIKE Prime hub for a control loop with a small amount of
-arithmetic. 200 Hz is achievable but leaves less headroom for logging or printing.
+## 7. Hub-Side Constraints
 
-## 7. Limits And Gotchas
+When writing code that should run through the shared package path on the hub:
 
-- **No `numpy`.** MicroPython does not ship numpy. Use plain `math` and small Python
-  lists for hub side code. Keep matrices tiny (4x4 is fine).
-- **No `dataclasses`.** Use plain classes or tuples on the hub side.
-- **No YAML parsing.** Hub-side config must be hard coded or generated ahead of time.
-- **No filesystem.** Logging on the hub goes to the Pybricks Code terminal. Capture it
-  there or stream values over Bluetooth from the desktop side.
-- **`print` is slow.** Excessive prints will choke a 100 Hz loop. Print every Nth
-  iteration or only on events.
-- **Hub button interrupts.** Pressing the center button on the hub stops the program.
-  This is your hardware kill switch.
+- avoid `numpy`,
+- avoid YAML parsing,
+- avoid heavy object allocation inside the loop,
+- keep logging light,
+- keep math scalar and MicroPython-safe.
 
-## 8. Deploying
+`NonLinearController` follows those rules so it can run inside
+`src/HubPackageBalance.py`.
 
-Two paths.
+## 8. Practical Deployment
 
-### Browser
+Browser-based run:
 
 1. Open [code.pybricks.com](https://code.pybricks.com).
-2. Connect to the hub over Bluetooth.
-3. Open the file from disk or paste the code.
+2. Connect to the hub.
+3. Open or paste a hub script.
 4. Click run.
 
-### Command Line
+Command-line run:
 
 ```bash
 pip install -e .[hub]
 pybricksdev run ble hub/HubMain.py
+pybricksdev run ble hub/HubDriveSmoke.py
+pybricksdev run ble src/HubPackageBalance.py
 ```
 
-If discovery fails:
-
-```bash
-pybricksdev run ble --name "Pybricks Hub" hub/HubMain.py
-```
-
-On Linux you may need Bluetooth permissions. Adding your user to the `bluetooth` group
-usually does it.
-
-For the package-backed smoke path:
+For package-backed runs, regenerate the hub-safe config first:
 
 ```bash
 python scripts/GenerateHubDriveSmokeRuntime.py
-pybricksdev run ble src/HubPackageDriveSmoke.py
 ```
+
+## 9. Good Habits During Balance Experiments
+
+- keep a hand near the robot during first tests,
+- start with small motion and short runs,
+- print only sparse telemetry,
+- use the hub center button as the emergency stop,
+- record the exact gains used for each experiment.

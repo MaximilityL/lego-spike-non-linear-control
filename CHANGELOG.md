@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-04-10
+
+### Added
+- Added a single-motor step-response workflow for the currently wired Port `F`
+  motor. `hub/HubSingleMotorStepResponseF.py` now runs both a velocity step
+  and a position step on one motor and prints telemetry rows containing the
+  requested reference-versus-measurement traces for angle and speed.
+- Added `scripts/PlotHubSingleMotorStepResponse.py` as the desktop-side
+  companion that launches the hub script through `pybricksdev` or reads a
+  saved log, then overlays reference and measured angle/speed so one-motor
+  actuator behavior can be inspected quickly before or alongside full-balance
+  experiments.
+
+### Changed
+- Switched the shipped default balance profile back to the nonlinear/tanh path
+  and retuned the current YAML/runtime defaults around the latest hardware
+  iteration: a more negative `targetTilt`, stronger tilt authority, stronger
+  wheel-state centering, a wider `sScale`, and zeroed deadband/filter terms so
+  the nonlinear controller starts from the current real-robot operating point
+  rather than the previous PID branch defaults.
+- Reduced the default drive-smoke telemetry print cadence from every `20`
+  iterations to every `50` iterations so the shared hub runs spend less time
+  printing over Bluetooth while still leaving enough data for post-run plots.
+
+### Tests
+- Added parser/span tests for the new single-motor step-response plotter so the
+  reference-versus-measurement telemetry contract is checked on desktop before
+  running it on the hub.
+
 ## [1.4.0] - 2026-04-10
 
 ### Added

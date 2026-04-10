@@ -1,9 +1,9 @@
-"""Generate the hub-safe drive-smoke config from configs/Default.yaml.
+"""Generate the hub-safe package-runtime config from configs/Default.yaml.
 
-The SPIKE hub cannot parse YAML, so the package-backed hub smoke test imports
+The SPIKE hub cannot parse YAML, so the package-backed hub entrypoints import
 ``LegoBalance.HubDriveSmokeRuntime`` instead. This script keeps that tiny
 MicroPython-safe config module generated from the real desktop config so the
-hub-side package smoke test follows the values set in YAML.
+hub-side package runs follow the values set in YAML.
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ def _FmtFloat(value: float) -> str:
 def ValidateAgainstVerifiedDriveSmoke(config) -> None:
     """Compatibility shim.
 
-    The package smoke runtime now trusts the values loaded from
+    The package runtime now trusts the values loaded from
     ``configs/Default.yaml``. Validation of types and basic ranges happens in
     ``LegoBalance.RobotConfig``.
     """
@@ -201,7 +201,7 @@ def Main() -> int:
     args = ParseArgs()
     output_path = GenerateHubDriveSmokeRuntime(args.config, args.output)
     print(f"Generated {_Relative(output_path)} from {_Relative(args.config)}")
-    print("Hub package smoke runtime now follows the YAML values directly.")
+    print("Hub package runtime now follows the YAML values directly.")
     return 0
 
 

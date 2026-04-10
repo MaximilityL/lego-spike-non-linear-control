@@ -1,146 +1,146 @@
 # Deploying To The Hub
 
-This page is a practical reference for getting code from this repo onto a
-LEGO SPIKE Prime hub running Pybricks.
+This page is the practical reference for getting code from this repository onto
+a LEGO SPIKE Prime hub running Pybricks.
 
-## 1. Two Supported Paths
+## 1. Supported Deployment Paths
 
-### 1.1. Browser (recommended for first time users)
+### 1.1. Browser workflow
 
 1. Open [code.pybricks.com](https://code.pybricks.com) in Chrome or Edge.
-2. Click the connect icon. Pick your hub from the Bluetooth picker.
-3. Click "New file" or use the file menu to open one of the scripts under
-   `hub/`. The browser editor accepts pasted text from your clipboard, so
-   you can also just copy paste the file contents.
-4. Click the run (play) button.
+2. Connect to the hub over Bluetooth.
+3. Open one of the self-contained scripts under `hub/`, or paste it into a new file.
+4. Click run.
 
-The browser editor handles uploading and running for you. There is no
-filesystem on the hub that you need to manage manually.
+This is the simplest path for first-time bring-up.
 
-### 1.2. pybricksdev from the desktop
+### 1.2. `pybricksdev` workflow
 
-Install the optional dependency once:
+Install the optional dependency:
 
 ```bash
 pip install -e .[hub]
 ```
 
-Then run any hub script directly:
+Then run a hub script directly:
 
 ```bash
 pybricksdev run ble hub/HubMain.py
-pybricksdev run ble hub/HubBluetoothTest.py
 pybricksdev run ble hub/HubImuTest.py
 pybricksdev run ble hub/HubEncoderTest.py
 pybricksdev run ble hub/HubMotorTest.py
+pybricksdev run ble hub/HubSingleMotorStepResponseF.py
 pybricksdev run ble hub/HubDriveSmoke.py
 pybricksdev run ble src/HubPackageDriveSmoke.py
+pybricksdev run ble src/HubPackageBalance.py
 ```
 
-If discovery fails, give it the hub name explicitly:
+If discovery fails, pass the hub name explicitly:
 
 ```bash
 pybricksdev run ble --name "Pybricks Hub" hub/HubMain.py
 ```
 
-To run `HubMain.py` and show the live telemetry plots on your laptop:
+## 2. Common Workflows
+
+### 2.1. Sensor bring-up with live plotting
 
 ```bash
+pybricksdev run ble hub/HubMain.py
 python scripts/PlotHubMainLive.py
 ```
 
-This opens one live state-vector figure for
-`x = [theta, theta_dot, p, p_dot]^T`. Add `--show-motors` if you also want
-raw left/right motor encoder plots as a diagnostic view.
-
-To run `HubDriveSmoke.py` and show a diagnostic plot after the forward/stop/backward
-schedule finishes:
+### 2.2. Self-contained hub drive smoke
 
 ```bash
+pybricksdev run ble hub/HubDriveSmoke.py
 python scripts/PlotHubDriveSmoke.py
 ```
 
-The plotter launches `pybricksdev`, collects the hub `DATA` rows during the run, and then
-opens a static plot for `[theta, thetaDot, phi, phiDot]`, wheel command, and drive gate
-status.
-
-Do not run `pybricksdev run ble scripts/PlotHubDriveSmoke.py`; that file is the laptop
-plotter. Upload/run `hub/HubDriveSmoke.py`, or let `python scripts/PlotHubDriveSmoke.py`
-launch it for you.
-
-To test the package-backed drive smoke path instead, run:
+### 2.3. Single-motor step response on Port F
 
 ```bash
+pybricksdev run ble hub/HubSingleMotorStepResponseF.py
+python scripts/PlotHubSingleMotorStepResponse.py
+```
+
+### 2.4. Package-backed drive smoke
+
+```bash
+python scripts/GenerateHubDriveSmokeRuntime.py
 python scripts/PlotHubPackageDriveSmoke.py
 ```
 
-This launches `src/HubPackageDriveSmoke.py`, which imports the shared
-`LegoBalance.StateEstimator`, `DriveCommandController`, and `SafetyMonitor` modules on
-the hub. The entrypoint lives under `src/` because `pybricksdev` resolves local package
-imports relative to the uploaded script.
-
-You can rename your hub from the gear icon in `code.pybricks.com`.
-
-## 2. Common Errors
-
-### 2.1. "BleakError: Bluetooth device is turned off"
-
-Turn on Bluetooth on your computer. On Linux check that the `bluetooth`
-service is running:
+### 2.5. Package-backed real balance run
 
 ```bash
-systemctl status bluetooth
+python scripts/GenerateHubDriveSmokeRuntime.py
+python scripts/PlotHubPackageBalance.py
 ```
 
-### 2.2. Permission denied when scanning
+That script launches `src/HubPackageBalance.py`, captures its telemetry, and
+generates a diagnostic plot automatically.
 
-On Linux add your user to the `bluetooth` group:
+If you prefer to run the hub entrypoint directly:
 
 ```bash
-sudo usermod -a -G bluetooth "$USER"
+python scripts/GenerateHubDriveSmokeRuntime.py
+pybricksdev run ble src/HubPackageBalance.py
 ```
 
-Log out and back in.
+## 3. Why There Are Two Styles Of Hub Scripts
 
-### 2.3. "Could not find hub"
+The repository keeps both:
 
-- Make sure the hub is on and the green light is steady.
-- Hold the Bluetooth button on the hub until the light blinks. This puts it
-  in pairing mode.
-- Try the browser editor. If the browser sees the hub but `pybricksdev`
-  does not, the issue is in your local Bluetooth stack, not in the hub.
+- self-contained scripts under `hub/`, and
+- package-backed scripts under `src/`.
 
-### 2.4. "ImportError" on the hub
+The self-contained scripts are easy to upload and debug during bring-up.
 
-Most Pybricks programs here should only import from `pybricks.*`. If you accidentally
-import the normal desktop `LegoBalance` modules, `yaml`, `dataclasses`, or another
-desktop package, the program can fail on the hub. The exception is
-`src/HubPackageDriveSmoke.py`, which imports the shared estimator/controller/safety
-modules after keeping that import path MicroPython-safe. Its helper
-`LegoBalance.HubDriveSmokeRuntime` supplies config values generated from
-`configs/Default.yaml` by the laptop plotter before upload.
+The package-backed scripts are valuable because they run the shared
+`LegoBalance` estimator/controller/safety logic on the real hub. That gives a
+much more faithful end-to-end validation of the desktop-side code.
 
-## 3. Why The Hub Side Scripts Are Self Contained
+## 4. Package-Backed Config Generation
 
-Pybricks programs cannot freely import from arbitrary places on your
-laptop. Multi file uploads exist in recent Pybricks versions, but they are
-resolved relative to the entrypoint file. The clean default rule for this
-project is "one self contained file per hub program"; the package-backed
-drive smoke test is the deliberate exception used to test hub-safe
-`LegoBalance` logic on hardware.
+The hub cannot parse `configs/Default.yaml`, so the package-backed entrypoints
+use a generated helper module:
 
-When you finalize a controller on the desktop, the path is:
+```bash
+python scripts/GenerateHubDriveSmokeRuntime.py
+```
 
-1. Develop and test the controller in `src/LegoBalance/`.
-2. Validate it in `examples/ClosedLoopSimulation.py`.
-3. Copy the function bodies into a new file under `hub/`, replacing the
-   imports with the Pybricks equivalents.
-4. Upload and run.
+That command regenerates `src/LegoBalance/HubDriveSmokeRuntime.py`, which is the
+hub-safe mirror of the desktop config for package-backed runs.
 
-## 4. Stopping A Running Program
+## 5. Common Errors
 
-- **From the browser.** Click the stop button.
-- **From the hub.** Press the center button. Every script under `hub/`
-  checks for this and stops cleanly.
-- **From `pybricksdev`.** Press Ctrl C in your terminal. The hub will stop
-  on disconnect.
+### 5.1. Hub not found
+
+- make sure the hub is on,
+- make sure Bluetooth is enabled,
+- put the hub into pairing mode,
+- try the explicit `--name "Pybricks Hub"` option.
+
+### 5.2. Permission denied during Bluetooth scan
+
+On Linux you may need Bluetooth permissions configured for the user account.
+
+### 5.3. Import errors on the hub
+
+Most hub scripts should import only from `pybricks.*`.
+
+The deliberate exceptions are:
+
+- `src/HubPackageDriveSmoke.py`
+- `src/HubPackageBalance.py`
+
+Those are designed to import a MicroPython-safe subset of `LegoBalance`.
+
+## 6. Practical Safety Reminder
+
+Balance experiments can move abruptly. During early runs:
+
+- hold the robot or lift the wheels,
+- keep the center button accessible,
+- start from conservative gains and short runs.
