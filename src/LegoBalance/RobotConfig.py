@@ -16,6 +16,7 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG_PATH = REPO_ROOT / "configs" / "Default.yaml"
 LOCAL_CONFIG_PATH = REPO_ROOT / "configs" / "local.yaml"
+VALID_MOTOR_PORTS = ("A", "B", "C", "D", "E", "F")
 
 
 @dataclass
@@ -31,12 +32,30 @@ class ChassisConfig:
 class MotorsConfig:
     leftPort: str = "B"
     rightPort: str = "F"
+    rightAuxPort: str = ""
     maxAngularRate: float = 17.453292519943295
     maxDuty: float = 90.0
     encoderCountsPerRev: int = 360
     forwardSign: int = -1
     leftEncoderSign: int = 1
     rightEncoderSign: int = -1
+    rightAuxEncoderSign: int = 1
+
+
+def _NormalizeRequiredMotorPort(value: object, fieldName: str) -> str:
+    portName = str(value).strip().upper()
+    if portName not in VALID_MOTOR_PORTS:
+        raise ValueError(f"{fieldName} must be one of {VALID_MOTOR_PORTS}")
+    return portName
+
+
+def _NormalizeOptionalMotorPort(value: object, fieldName: str) -> str:
+    portName = str(value).strip().upper()
+    if not portName:
+        return ""
+    if portName not in VALID_MOTOR_PORTS:
+        raise ValueError(f"{fieldName} must be empty or one of {VALID_MOTOR_PORTS}")
+    return portName
 
 
 @dataclass
@@ -133,6 +152,23 @@ class RobotConfig:
             raise ValueError("chassis.wheelRadius must be positive")
         if self.chassis.wheelBase <= 0:
             raise ValueError("chassis.wheelBase must be positive")
+        self.motors.leftPort = _NormalizeRequiredMotorPort(
+            self.motors.leftPort,
+            "motors.leftPort",
+        )
+        self.motors.rightPort = _NormalizeRequiredMotorPort(
+            self.motors.rightPort,
+            "motors.rightPort",
+        )
+        self.motors.rightAuxPort = _NormalizeOptionalMotorPort(
+            self.motors.rightAuxPort,
+            "motors.rightAuxPort",
+        )
+        usedPorts = [self.motors.leftPort, self.motors.rightPort]
+        if self.motors.rightAuxPort:
+            usedPorts.append(self.motors.rightAuxPort)
+        if len(set(usedPorts)) != len(usedPorts):
+            raise ValueError("motor ports must be unique across left/right/rightAux")
         if self.motors.maxAngularRate <= 0:
             raise ValueError("motors.maxAngularRate must be positive")
         if self.motors.forwardSign not in (-1, 1):
@@ -141,6 +177,8 @@ class RobotConfig:
             raise ValueError("motors.leftEncoderSign must be +1 or -1")
         if self.motors.rightEncoderSign not in (-1, 1):
             raise ValueError("motors.rightEncoderSign must be +1 or -1")
+        if self.motors.rightAuxEncoderSign not in (-1, 1):
+            raise ValueError("motors.rightAuxEncoderSign must be +1 or -1")
         if not (0.0 < self.estimator.alpha < 1.0):
             raise ValueError("estimator.alpha must lie strictly between 0 and 1")
         if self.control.loopRate <= 0:

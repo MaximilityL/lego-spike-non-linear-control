@@ -8,9 +8,9 @@ What this script does:
 
 1. Reads the IMU pitch and the angular velocity, applying the same sign
    convention used by ``configs/Default.yaml``.
-2. Reads both motor encoder angles and rates, applies the encoder signs,
+2. Reads the axle motor encoder angles and rates, applies the encoder signs,
    and computes the implemented wheel motion state ``phi`` and ``phiDot``
-   as the mean of the two.
+   from the left motor plus the averaged right-side motor pair.
 3. Walks through a fixed schedule of validated wheel velocity commands:
    stop, forward, stop, backward, stop.
 4. Refuses to issue motion commands if the body tilt has wandered past the
@@ -53,6 +53,7 @@ from pybricks.tools import StopWatch, wait
 # ---------------------------------------------------------------------------
 LEFT_PORT = Port.B
 RIGHT_PORT = Port.F
+RIGHT_AUX_PORT = Port.D
 LOOP_PERIOD_MS = 20            # 50 Hz, comfortable on the hub
 PRINT_EVERY_N = 5              # print one telemetry line out of every N iterations
 
@@ -65,6 +66,7 @@ GYRO_BIAS_DEG_PER_SEC = 0.0
 FORWARD_SIGN = -1
 LEFT_ENCODER_SIGN = 1
 RIGHT_ENCODER_SIGN = -1
+RIGHT_AUX_ENCODER_SIGN = -1
 
 # Drive command magnitudes (mirror configs/Default.yaml drive section).
 DRIVE_TEST_SPEED_DPS = 1000.0
@@ -94,24 +96,25 @@ def PrintBanner():
     print(" Press the center button at any time to stop cleanly.")
     print("============================================================")
     print(" Config:")
-    print("   loop period         : {} ms".format(LOOP_PERIOD_MS))
-    print("   telemetry every     : {} loop(s)".format(PRINT_EVERY_N))
-    print("   drive test speed    : {} deg/s".format(DRIVE_TEST_SPEED_DPS))
-    print("   max tilt for motion : {} deg".format(MAX_TILT_FOR_MOTION_DEG))
-    print("   tilt sign           : {}".format(TILT_SIGN))
-    print("   zero offset         : {} deg".format(ZERO_OFFSET_DEG))
-    print("   gyro bias           : {} deg/s".format(GYRO_BIAS_DEG_PER_SEC))
-    print("   forward sign        : {}".format(FORWARD_SIGN))
-    print("   left encoder sign   : {}".format(LEFT_ENCODER_SIGN))
-    print("   right encoder sign  : {}".format(RIGHT_ENCODER_SIGN))
+    print(f"   loop period         : {LOOP_PERIOD_MS} ms")
+    print(f"   telemetry every     : {PRINT_EVERY_N} loop(s)")
+    print(f"   drive test speed    : {DRIVE_TEST_SPEED_DPS} deg/s")
+    print(f"   max tilt for motion : {MAX_TILT_FOR_MOTION_DEG} deg")
+    print(f"   tilt sign           : {TILT_SIGN}")
+    print(f"   zero offset         : {ZERO_OFFSET_DEG} deg")
+    print(f"   gyro bias           : {GYRO_BIAS_DEG_PER_SEC} deg/s")
+    print(f"   forward sign        : {FORWARD_SIGN}")
+    print(f"   left encoder sign   : {LEFT_ENCODER_SIGN}")
+    print(f"   right encoder sign  : {RIGHT_ENCODER_SIGN}")
+    print("   right aux port      : D")
+    print(f"   right aux enc sign  : {RIGHT_AUX_ENCODER_SIGN}")
     print(" Schedule:")
     totalMs = 0
     for entry in DRIVE_SCHEDULE:
-        print("   {:>8s} for {:>5d} ms at {:+6.1f} deg/s".format(
-            entry[0], entry[2], entry[1])
+        print(f"   {entry[0]:>8s} for {entry[2]:>5d} ms at {entry[1]:+6.1f} deg/s"
         )
         totalMs += entry[2]
-    print("   total run time      : {} ms".format(totalMs))
+    print(f"   total run time      : {totalMs} ms")
     print(" Post-run diagnostic plot:")
     print("   python scripts/PlotHubDriveSmoke.py")
     print("============================================================")
@@ -121,9 +124,11 @@ def Main():
     hub = PrimeHub()
     leftMotor = Motor(LEFT_PORT)
     rightMotor = Motor(RIGHT_PORT)
+    rightAuxMotor = Motor(RIGHT_AUX_PORT)
 
     leftMotor.reset_angle(0)
     rightMotor.reset_angle(0)
+    rightAuxMotor.reset_angle(0)
 
     PrintBanner()
     print("Starting in 1.5 s. Hold the robot or block the wheels NOW.")
@@ -143,7 +148,8 @@ def Main():
 
     print(
         "DATA_HEADER,t_s,leg,theta_deg,theta_dot_deg_per_sec,"
-        "phi_deg,phi_dot_deg_per_sec,left_cmd_deg_per_sec,right_cmd_deg_per_sec,gate"
+        "phi_deg,phi_dot_deg_per_sec,left_cmd_deg_per_sec,right_cmd_deg_per_sec,"
+        "gate,right_aux_angle_deg,right_aux_rate_deg_per_sec"
     )
 
     for leg in DRIVE_SCHEDULE:
@@ -155,9 +161,7 @@ def Main():
         legEndMs = legStartMs + legDurationMs
         print("------------------------------------------------------------")
         print(
-            "LEG START : '{}' wanted {:+.1f} deg/s for {} ms (t={:.2f} s)".format(
-                legLabel, legSpeedDps, legDurationMs, legStartMs / 1000.0
-            )
+            f"LEG START : '{legLabel}' wanted {legSpeedDps:+.1f} deg/s for {legDurationMs} ms (t={legStartMs / 1000.0:.2f} s)"
         )
         print("------------------------------------------------------------")
 
@@ -166,6 +170,7 @@ def Main():
                 print("CENTER BUTTON pressed, aborting smoke flow.")
                 leftMotor.stop()
                 rightMotor.stop()
+                rightAuxMotor.stop()
                 return
 
             # ----- Read IMU. -----
@@ -177,13 +182,21 @@ def Main():
             # ----- Read encoders, compute phi / phiDot. -----
             leftAngleDeg = leftMotor.angle()
             rightAngleDeg = rightMotor.angle()
+            rightAuxAngleDeg = rightAuxMotor.angle()
             leftSpeedDps = leftMotor.speed()
             rightSpeedDps = rightMotor.speed()
+            rightAuxSpeedDps = rightAuxMotor.speed()
 
             signedLeftAngleDeg = LEFT_ENCODER_SIGN * leftAngleDeg
-            signedRightAngleDeg = RIGHT_ENCODER_SIGN * rightAngleDeg
+            signedRightAngleDeg = (
+                RIGHT_ENCODER_SIGN * rightAngleDeg
+                + RIGHT_AUX_ENCODER_SIGN * rightAuxAngleDeg
+            ) / 2.0
             signedLeftSpeedDps = LEFT_ENCODER_SIGN * leftSpeedDps
-            signedRightSpeedDps = RIGHT_ENCODER_SIGN * rightSpeedDps
+            signedRightSpeedDps = (
+                RIGHT_ENCODER_SIGN * rightSpeedDps
+                + RIGHT_AUX_ENCODER_SIGN * rightAuxSpeedDps
+            ) / 2.0
             phiDeg = FORWARD_SIGN * (signedLeftAngleDeg + signedRightAngleDeg) / 2.0
             phiDotDegPerSec = (
                 FORWARD_SIGN * (signedLeftSpeedDps + signedRightSpeedDps) / 2.0
@@ -208,27 +221,23 @@ def Main():
             if previousGated is None:
                 if gated:
                     print(
-                        ">>> START OVER TILT : |theta|={:.2f} deg > limit {:.2f} deg, "
-                        "motion gated".format(tiltMagnitudeDeg, MAX_TILT_FOR_MOTION_DEG)
+                        f">>> START OVER TILT : |theta|={tiltMagnitudeDeg:.2f} deg > limit {MAX_TILT_FOR_MOTION_DEG:.2f} deg, "
+                        "motion gated"
                     )
                 else:
                     print(
-                        ">>> START SAFE      : |theta|={:.2f} deg <= limit {:.2f} deg, "
-                        "motion allowed".format(tiltMagnitudeDeg, MAX_TILT_FOR_MOTION_DEG)
+                        f">>> START SAFE      : |theta|={tiltMagnitudeDeg:.2f} deg <= limit {MAX_TILT_FOR_MOTION_DEG:.2f} deg, "
+                        "motion allowed"
                     )
             elif gated and not previousGated:
                 print(
-                    ">>> OVER TILT       : |theta|={:.2f} deg > limit {:.2f} deg, "
-                    "MOTION GATED, command forced to 0".format(
-                        tiltMagnitudeDeg, MAX_TILT_FOR_MOTION_DEG
-                    )
+                    f">>> OVER TILT       : |theta|={tiltMagnitudeDeg:.2f} deg > limit {MAX_TILT_FOR_MOTION_DEG:.2f} deg, "
+                    "MOTION GATED, command forced to 0"
                 )
             elif (not gated) and previousGated:
                 print(
-                    ">>> BACK IN SAFE    : |theta|={:.2f} deg <= limit {:.2f} deg, "
-                    "motion allowed again".format(
-                        tiltMagnitudeDeg, MAX_TILT_FOR_MOTION_DEG
-                    )
+                    f">>> BACK IN SAFE    : |theta|={tiltMagnitudeDeg:.2f} deg <= limit {MAX_TILT_FOR_MOTION_DEG:.2f} deg, "
+                    "motion allowed again"
                 )
             previousGated = gated
 
@@ -236,34 +245,27 @@ def Main():
             # also mirrored, so positive commandDps means forward motion.
             leftMotor.run(FORWARD_SIGN * LEFT_ENCODER_SIGN * commandDps)
             rightMotor.run(FORWARD_SIGN * RIGHT_ENCODER_SIGN * commandDps)
+            rightAuxMotor.run(FORWARD_SIGN * RIGHT_AUX_ENCODER_SIGN * commandDps)
 
             if iteration % PRINT_EVERY_N == 0:
                 gateLabel = "GATED" if gated else "SAFE"
                 print(
-                    "DATA,{:.3f},{},{:+.2f},{:+.2f},{:+.2f},{:+.2f},{:+.2f},{:+.2f},{}".format(
-                        sw.time() / 1000.0,
-                        legLabel,
-                        thetaDeg,
-                        thetaDotDegPerSec,
-                        phiDeg,
-                        phiDotDegPerSec,
-                        commandDps,
-                        commandDps,
-                        gateLabel,
-                    )
+                    f"DATA,{sw.time() / 1000.0:.3f},{legLabel},{thetaDeg:+.2f},{thetaDotDegPerSec:+.2f},{phiDeg:+.2f},{phiDotDegPerSec:+.2f},{commandDps:+.2f},{commandDps:+.2f},{gateLabel},{RIGHT_AUX_ENCODER_SIGN * rightAuxAngleDeg:+.2f},{RIGHT_AUX_ENCODER_SIGN * rightAuxSpeedDps:+.2f}"
                 )
 
             iteration += 1
             wait(LOOP_PERIOD_MS)
 
         print(
-            "LEG END   : '{}' done at t={:.2f} s".format(legLabel, sw.time() / 1000.0)
+            f"LEG END   : '{legLabel}' done at t={sw.time() / 1000.0:.2f} s"
         )
 
     leftMotor.stop()
     rightMotor.stop()
+    rightAuxMotor.stop()
     leftMotor.brake()
     rightMotor.brake()
+    rightAuxMotor.brake()
 
     totalIterations = safeIterations + gatedIterations
     if totalIterations <= 0:
@@ -273,14 +275,14 @@ def Main():
 
     print("============================================================")
     print(" HubDriveSmoke DONE")
-    print("   total iterations : {}".format(totalIterations))
-    print("   safe iterations  : {}".format(safeIterations))
-    print("   gated iterations : {}  ({:.1f} %)".format(gatedIterations, gatedPct))
-    print("   total time       : {:.2f} s".format(sw.time() / 1000.0))
-    print("   final theta      : {:+.2f} deg".format(thetaDeg))
-    print("   final theta dot  : {:+.2f} deg/s".format(thetaDotDegPerSec))
-    print("   final phi        : {:+.2f} deg".format(phiDeg))
-    print("   final phi dot    : {:+.2f} deg/s".format(phiDotDegPerSec))
+    print(f"   total iterations : {totalIterations}")
+    print(f"   safe iterations  : {safeIterations}")
+    print(f"   gated iterations : {gatedIterations}  ({gatedPct:.1f} %)")
+    print(f"   total time       : {sw.time() / 1000.0:.2f} s")
+    print(f"   final theta      : {thetaDeg:+.2f} deg")
+    print(f"   final theta dot  : {thetaDotDegPerSec:+.2f} deg/s")
+    print(f"   final phi        : {phiDeg:+.2f} deg")
+    print(f"   final phi dot    : {phiDotDegPerSec:+.2f} deg/s")
     print("   diagnostic plot  : python scripts/PlotHubDriveSmoke.py")
     print("============================================================")
 

@@ -1,10 +1,10 @@
 """HubMotorTest.py
 
-Safe motor smoke test. Spins both motors gently in alternating directions
+Safe motor smoke test. Spins all axle motors gently in alternating directions
 for a fixed number of cycles, then stops. Designed to confirm:
 
-- both motors are connected on the expected ports
-- both motors respond to commands
+- all drive motors are connected on the expected ports
+- all drive motors respond to commands
 - the encoder readings change as the motors move
 - the center button still stops the program
 
@@ -14,15 +14,20 @@ the floor.
 """
 
 from pybricks.hubs import PrimeHub
-from pybricks.parameters import Button, Port, Stop
+from pybricks.parameters import Button, Port
 from pybricks.pupdevices import Motor
 from pybricks.tools import StopWatch, wait
 
 # ---------------------------------------------------------------------------
 # Configuration. Mirror configs/Default.yaml.
 # ---------------------------------------------------------------------------
-LEFT_PORT = Port.A
-RIGHT_PORT = Port.B
+LEFT_PORT = Port.B
+RIGHT_PORT = Port.F
+RIGHT_AUX_PORT = Port.D
+FORWARD_SIGN = -1
+LEFT_ENCODER_SIGN = 1
+RIGHT_ENCODER_SIGN = -1
+RIGHT_AUX_ENCODER_SIGN = -1
 GENTLE_SPEED_DPS = 90       # 90 deg/s = 0.25 rev/s. Very gentle.
 LEG_DURATION_MS = 800       # spin in one direction for this long
 LEG_COUNT = 4               # forward, back, forward, back
@@ -33,23 +38,27 @@ def CenterPressed(hub):
     return Button.CENTER in hub.buttons.pressed()
 
 
-def DriveBoth(leftMotor, rightMotor, speedDps):
-    leftMotor.run(speedDps)
-    rightMotor.run(speedDps)
+def DriveAll(leftMotor, rightMotor, rightAuxMotor, speedDps):
+    leftMotor.run(FORWARD_SIGN * LEFT_ENCODER_SIGN * speedDps)
+    rightMotor.run(FORWARD_SIGN * RIGHT_ENCODER_SIGN * speedDps)
+    rightAuxMotor.run(FORWARD_SIGN * RIGHT_AUX_ENCODER_SIGN * speedDps)
 
 
-def StopBoth(leftMotor, rightMotor):
+def StopAll(leftMotor, rightMotor, rightAuxMotor):
     leftMotor.stop()
     rightMotor.stop()
+    rightAuxMotor.stop()
 
 
 def Main():
     hub = PrimeHub()
     leftMotor = Motor(LEFT_PORT)
     rightMotor = Motor(RIGHT_PORT)
+    rightAuxMotor = Motor(RIGHT_AUX_PORT)
 
     leftMotor.reset_angle(0)
     rightMotor.reset_angle(0)
+    rightAuxMotor.reset_angle(0)
 
     print("HubMotorTest starting. Block the wheels first.")
     print("Center button stops the program at any time.")
@@ -62,8 +71,8 @@ def Main():
             break
         direction = 1 if (leg % 2 == 0) else -1
         speed = direction * GENTLE_SPEED_DPS
-        print("leg {}: speed {} deg/s".format(leg, speed))
-        DriveBoth(leftMotor, rightMotor, speed)
+        print(f"leg {leg}: speed {speed} deg/s")
+        DriveAll(leftMotor, rightMotor, rightAuxMotor, speed)
 
         legEndMs = sw.time() + LEG_DURATION_MS
         while sw.time() < legEndMs:
@@ -71,13 +80,17 @@ def Main():
                 break
             wait(LOOP_PERIOD_MS)
 
-    StopBoth(leftMotor, rightMotor)
+    StopAll(leftMotor, rightMotor, rightAuxMotor)
     leftMotor.brake()
     rightMotor.brake()
+    rightAuxMotor.brake()
 
     finalLeft = leftMotor.angle()
     finalRight = rightMotor.angle()
-    print("HubMotorTest done. left={} deg, right={} deg".format(finalLeft, finalRight))
+    finalRightAux = rightAuxMotor.angle()
+    print(
+        f"HubMotorTest done. left={finalLeft} deg, right={finalRight} deg, rightAux={finalRightAux} deg"
+    )
 
 
 Main()

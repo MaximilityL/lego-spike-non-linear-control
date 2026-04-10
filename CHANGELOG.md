@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-04-10
+
+### Changed
+- Marked this as the first somewhat working integrated version of the current
+  robot build. The shared software stack now matches the real drivetrain
+  layout instead of assuming a simpler two-motor bench configuration: left
+  wheel on `B`, primary right-side motor on `F`, and an auxiliary right-side
+  axle motor on `D`.
+- Extended the shared motor config with `rightAuxPort` and
+  `rightAuxEncoderSign`, and tightened validation so port names are normalized
+  and duplicate assignments are rejected. The third motor is now part of the
+  explicit hardware contract instead of an informal wiring detail.
+- Updated the package-backed hub balance and drive-smoke entrypoints so the
+  D-port motor is reset, stopped, and commanded together with the existing
+  right-side motor, and so the implemented right-wheel measurement is built
+  from the averaged signed encoders of `F` and `D`. The controller and
+  estimator still run on the same two-wheel state `[theta, thetaDot, phi,
+  phiDot]`, but that state now reflects the real axle mechanics more closely.
+- Aligned the standalone hub bring-up, encoder, and motor smoke scripts with
+  the same B/F/D wiring and telemetry assumptions, so quick bench checks and
+  package-backed runs no longer disagree about which motors belong to the
+  drive axle.
+
+### Tests
+- Expanded config and generated-runtime parity coverage for the auxiliary
+  axle-motor fields and reran the desktop validation suite on the integrated
+  three-motor configuration.
+
 ## [1.5.0] - 2026-04-10
 
 ### Added

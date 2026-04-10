@@ -72,12 +72,14 @@ class MotorsConfig:
     def __init__(self):
         self.leftPort = {_FmtString(config.motors.leftPort)}
         self.rightPort = {_FmtString(config.motors.rightPort)}
+        self.rightAuxPort = {_FmtString(config.motors.rightAuxPort)}
         self.maxAngularRate = {_FmtFloat(config.motors.maxAngularRate)}
         self.maxDuty = {_FmtFloat(config.motors.maxDuty)}
         self.encoderCountsPerRev = {int(config.motors.encoderCountsPerRev)}
         self.forwardSign = {int(config.motors.forwardSign)}
         self.leftEncoderSign = {int(config.motors.leftEncoderSign)}
         self.rightEncoderSign = {int(config.motors.rightEncoderSign)}
+        self.rightAuxEncoderSign = {int(config.motors.rightAuxEncoderSign)}
 
 
 class ImuConfig:

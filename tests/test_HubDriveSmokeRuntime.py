@@ -30,9 +30,11 @@ def test_HubDefaultConfigMatchesDesktopDefaultConfig():
 
     assert hub.motors.leftPort == desktop.motors.leftPort
     assert hub.motors.rightPort == desktop.motors.rightPort
+    assert hub.motors.rightAuxPort == desktop.motors.rightAuxPort
     assert hub.motors.forwardSign == desktop.motors.forwardSign
     assert hub.motors.leftEncoderSign == desktop.motors.leftEncoderSign
     assert hub.motors.rightEncoderSign == desktop.motors.rightEncoderSign
+    assert hub.motors.rightAuxEncoderSign == desktop.motors.rightAuxEncoderSign
     assert hub.motors.maxAngularRate == pytest.approx(desktop.motors.maxAngularRate)
     assert hub.imu.tiltAxis == desktop.imu.tiltAxis
     assert hub.imu.tiltSign == desktop.imu.tiltSign

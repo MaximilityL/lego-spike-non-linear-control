@@ -23,12 +23,14 @@ class MotorsConfig:
     def __init__(self):
         self.leftPort = 'B'
         self.rightPort = 'F'
+        self.rightAuxPort = 'D'
         self.maxAngularRate = 17.4532925199
         self.maxDuty = 90.0
         self.encoderCountsPerRev = 360
         self.forwardSign = -1
         self.leftEncoderSign = 1
         self.rightEncoderSign = -1
+        self.rightAuxEncoderSign = -1
 
 
 class ImuConfig:
@@ -97,7 +99,7 @@ class LoggingConfig:
 
 class RobotConfig:
     def __init__(self):
-        self.name = 'LegoBalance Mk1'
+        self.name = 'LegoBalance Mk2'
         self.description = 'Two wheel self balancing inverted pendulum on LEGO SPIKE Prime.'
         self.chassis = ChassisConfig()
         self.motors = MotorsConfig()

@@ -22,9 +22,11 @@ def test_DefaultConfigLoadsAndValidates():
     assert config.chassis.wheelBase == pytest.approx(0.11)
     assert config.motors.leftPort == "B"
     assert config.motors.rightPort == "F"
+    assert config.motors.rightAuxPort == "D"
     assert config.motors.forwardSign == -1
     assert config.motors.leftEncoderSign == 1
     assert config.motors.rightEncoderSign == -1
+    assert config.motors.rightAuxEncoderSign == -1
     assert config.motors.maxAngularRate == pytest.approx(17.4532925199)
     assert config.imu.zeroOffset == pytest.approx(-0.025220008)
     assert 0.0 < config.estimator.alpha < 1.0
@@ -116,6 +118,22 @@ def test_LoadConfigRejectsNegativeWheelRadius(tmp_path: Path):
 
 def test_LoadConfigRejectsBadEncoderSign(tmp_path: Path):
     bad = {"motors": {"rightEncoderSign": 0}}
+    badPath = tmp_path / "bad.yaml"
+    badPath.write_text(yaml.safe_dump(bad))
+    with pytest.raises(ValueError):
+        LoadConfig(path=badPath)
+
+
+def test_LoadConfigRejectsBadRightAuxEncoderSign(tmp_path: Path):
+    bad = {"motors": {"rightAuxEncoderSign": 0}}
+    badPath = tmp_path / "bad.yaml"
+    badPath.write_text(yaml.safe_dump(bad))
+    with pytest.raises(ValueError):
+        LoadConfig(path=badPath)
+
+
+def test_LoadConfigRejectsDuplicateMotorPorts(tmp_path: Path):
+    bad = {"motors": {"leftPort": "B", "rightPort": "F", "rightAuxPort": "F"}}
     badPath = tmp_path / "bad.yaml"
     badPath.write_text(yaml.safe_dump(bad))
     with pytest.raises(ValueError):

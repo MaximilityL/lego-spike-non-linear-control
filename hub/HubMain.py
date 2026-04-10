@@ -4,7 +4,8 @@ Minimal Pybricks bring up program. Run this on the SPIKE Prime hub once you
 have flashed Pybricks. It does the following:
 
 1. Initializes the hub.
-2. Initializes the two drive motors on ports A and B.
+2. Initializes the drive motors on ports B, F, and the optional right-side
+   axle assist motor on D.
 3. Reads the IMU roll and the angular velocity.
 4. Reads the encoder angles.
 5. Streams plot friendly telemetry rows to the Pybricks Code terminal.
@@ -42,12 +43,14 @@ from pybricks.tools import StopWatch, wait
 # ---------------------------------------------------------------------------
 LEFT_PORT = Port.B
 RIGHT_PORT = Port.F
+RIGHT_AUX_PORT = Port.D
 LOOP_PERIOD_MS = 20  # 50 Hz, comfortable on the hub for a sensor only loop
 PRINT_EVERY_N = 1    # print one line out of every N iterations
 WHEEL_RADIUS_M = 0.0285
 FORWARD_SIGN = -1
 LEFT_ENCODER_SIGN = 1
 RIGHT_ENCODER_SIGN = -1
+RIGHT_AUX_ENCODER_SIGN = -1
 
 # IMU configuration from Default.yaml
 TILT_SIGN = 1
@@ -61,10 +64,12 @@ def Main():
     hub = PrimeHub()
     leftMotor = Motor(LEFT_PORT)
     rightMotor = Motor(RIGHT_PORT)
+    rightAuxMotor = Motor(RIGHT_AUX_PORT)
 
     # Reset encoder origins so we start at zero.
     leftMotor.reset_angle(0)
     rightMotor.reset_angle(0)
+    rightAuxMotor.reset_angle(0)
 
     sw = StopWatch()
     nextTickMs = LOOP_PERIOD_MS
@@ -73,7 +78,8 @@ def Main():
     print("HubMain ready. Press center button to stop.")
     print(
         "DATA_HEADER,t_s,theta_deg,theta_dot_deg_per_sec,p_m,p_dot_m_per_sec,"
-        "left_angle_deg,left_rate_deg_per_sec,right_angle_deg,right_rate_deg_per_sec"
+        "left_angle_deg,left_rate_deg_per_sec,right_angle_deg,right_rate_deg_per_sec,"
+        "right_aux_angle_deg,right_aux_rate_deg_per_sec"
     )
 
     # ----- Main loop -----
@@ -93,8 +99,10 @@ def Main():
         # Read encoders. Pybricks returns degrees and deg/s.
         leftAngleDeg = leftMotor.angle()
         rightAngleDeg = rightMotor.angle()
+        rightAuxAngleDeg = rightAuxMotor.angle()
         leftSpeedDps = leftMotor.speed()
         rightSpeedDps = rightMotor.speed()
+        rightAuxSpeedDps = rightAuxMotor.speed()
 
         if iteration % PRINT_EVERY_N == 0:
             # Print every Nth iteration so the terminal is not flooded. Lines
@@ -102,9 +110,15 @@ def Main():
             # If one motor is mirrored, flip its encoder sign here so p is
             # positive when the wheel base rolls forward along the floor.
             signedLeftAngleDeg = LEFT_ENCODER_SIGN * leftAngleDeg
-            signedRightAngleDeg = RIGHT_ENCODER_SIGN * rightAngleDeg
+            signedRightAngleDeg = (
+                RIGHT_ENCODER_SIGN * rightAngleDeg
+                + RIGHT_AUX_ENCODER_SIGN * rightAuxAngleDeg
+            ) / 2.0
             signedLeftSpeedDps = LEFT_ENCODER_SIGN * leftSpeedDps
-            signedRightSpeedDps = RIGHT_ENCODER_SIGN * rightSpeedDps
+            signedRightSpeedDps = (
+                RIGHT_ENCODER_SIGN * rightSpeedDps
+                + RIGHT_AUX_ENCODER_SIGN * rightAuxSpeedDps
+            ) / 2.0
             meanWheelAngleDeg = (signedLeftAngleDeg + signedRightAngleDeg) / 2.0
             meanWheelSpeedDps = (signedLeftSpeedDps + signedRightSpeedDps) / 2.0
             thetaDeg = tiltDeg
@@ -112,17 +126,7 @@ def Main():
             pM = FORWARD_SIGN * meanWheelAngleDeg * DEG_TO_RAD * WHEEL_RADIUS_M
             pDotMPerSec = FORWARD_SIGN * meanWheelSpeedDps * DEG_TO_RAD * WHEEL_RADIUS_M
             print(
-                "DATA,{:.3f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f}".format(
-                    sw.time() / 1000.0,
-                    thetaDeg,
-                    thetaDotDegPerSec,
-                    pM,
-                    pDotMPerSec,
-                    signedLeftAngleDeg,
-                    signedLeftSpeedDps,
-                    signedRightAngleDeg,
-                    signedRightSpeedDps,
-                )
+                f"DATA,{sw.time() / 1000.0:.3f},{thetaDeg:.6f},{thetaDotDegPerSec:.6f},{pM:.6f},{pDotMPerSec:.6f},{signedLeftAngleDeg:.6f},{signedLeftSpeedDps:.6f},{signedRightAngleDeg:.6f},{signedRightSpeedDps:.6f},{RIGHT_AUX_ENCODER_SIGN * rightAuxAngleDeg:.6f},{RIGHT_AUX_ENCODER_SIGN * rightAuxSpeedDps:.6f}"
             )
 
         iteration += 1
@@ -134,6 +138,7 @@ def Main():
     # ----- Shutdown -----
     leftMotor.stop()
     rightMotor.stop()
+    rightAuxMotor.stop()
     print("HubMain stopped cleanly.")
 
 

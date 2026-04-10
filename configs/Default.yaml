@@ -12,7 +12,7 @@
 #   time          seconds
 
 robot:
-  name: "LegoBalance Mk1"
+  name: "LegoBalance Mk2"
   description: "Two wheel self balancing inverted pendulum on LEGO SPIKE Prime."
 
 # Geometry of the chassis. Update these for your specific build.
@@ -29,12 +29,14 @@ chassis:
 motors:
   leftPort: "B"               # SPIKE port labels are letters A through F
   rightPort: "F"
+  rightAuxPort: "D"           # second right-side motor on the same axle; set "" to disable
   maxAngularRate: 17.4532925199  # rad/s soft cap; 1000 deg/s validated on hub
   maxDuty: 90                 # 0..100 percent duty cap as a safety ceiling
   encoderCountsPerRev: 360    # SPIKE motors report degrees, see Units module
   forwardSign: -1             # hardware verified final flip: positive phi is forward
   leftEncoderSign: 1          # flip to -1 if left encoder counts backward when rolling forward
   rightEncoderSign: -1        # right motor is mirrored on the current build
+  rightAuxEncoderSign: -1     # D-port axle assist motor follows the same forward convention as F
 
 # IMU expectations. Verify these against your physical mounting.
 imu:

@@ -75,7 +75,37 @@ def SelectTiltRateDegPerSec(tiltAxis, gxDegPerSec, gyDegPerSec):
     raise ValueError("unsupported imu.tiltAxis: " + str(tiltAxis))
 
 
-def MakeMeasurement(hub, leftMotor, rightMotor, timestampSec, config):
+def HasRightAuxMotor(config):
+    return bool(str(getattr(config.motors, "rightAuxPort", "")).strip())
+
+
+def AverageSignedRightSignal(primaryRawValue, auxRawValue, config):
+    signedPrimary = config.motors.rightEncoderSign * primaryRawValue
+    if auxRawValue is None:
+        return signedPrimary
+    signedAux = config.motors.rightAuxEncoderSign * auxRawValue
+    return 0.5 * (signedPrimary + signedAux)
+
+
+def SyntheticRightRawSignal(signedValue, config):
+    return config.motors.rightEncoderSign * signedValue
+
+
+def StopMotors(leftMotor, rightMotor, rightAuxMotor):
+    leftMotor.stop()
+    rightMotor.stop()
+    if rightAuxMotor is not None:
+        rightAuxMotor.stop()
+
+
+def BrakeMotors(leftMotor, rightMotor, rightAuxMotor):
+    leftMotor.brake()
+    rightMotor.brake()
+    if rightAuxMotor is not None:
+        rightAuxMotor.brake()
+
+
+def MakeMeasurement(hub, leftMotor, rightMotor, rightAuxMotor, timestampSec, config):
     pitchDeg, rollDeg = hub.imu.tilt()
     gxDegPerSec, gyDegPerSec, _ = hub.imu.angular_velocity()
     tiltAngleDeg = SelectTiltAngleDeg(config.imu.tiltAxis, pitchDeg, rollDeg)
@@ -84,13 +114,17 @@ def MakeMeasurement(hub, leftMotor, rightMotor, timestampSec, config):
         gxDegPerSec,
         gyDegPerSec,
     )
+    rightAuxAngleDeg = None if rightAuxMotor is None else rightAuxMotor.angle()
+    rightAuxSpeedDps = None if rightAuxMotor is None else rightAuxMotor.speed()
+    signedRightAngleDeg = AverageSignedRightSignal(rightMotor.angle(), rightAuxAngleDeg, config)
+    signedRightSpeedDps = AverageSignedRightSignal(rightMotor.speed(), rightAuxSpeedDps, config)
     return Measurement(
         tiltAngle=DegToRad(tiltAngleDeg),
         tiltRate=DegPerSecToRadPerSec(tiltRateDegPerSec),
         leftWheelAngle=DegToRad(leftMotor.angle()),
-        rightWheelAngle=DegToRad(rightMotor.angle()),
+        rightWheelAngle=DegToRad(SyntheticRightRawSignal(signedRightAngleDeg, config)),
         leftWheelRate=DegPerSecToRadPerSec(leftMotor.speed()),
-        rightWheelRate=DegPerSecToRadPerSec(rightMotor.speed()),
+        rightWheelRate=DegPerSecToRadPerSec(SyntheticRightRawSignal(signedRightSpeedDps, config)),
         timestamp=timestampSec,
         valid=True,
     )
@@ -139,6 +173,8 @@ def PrintBanner(config, loopPeriodMs, telemetryEveryN, controller):
     print(f"   forward sign        : {config.motors.forwardSign}")
     print(f"   left encoder sign   : {config.motors.leftEncoderSign}")
     print(f"   right encoder sign  : {config.motors.rightEncoderSign}")
+    print(f"   right aux port      : {config.motors.rightAuxPort or '(disabled)'}")
+    print(f"   right aux enc sign  : {config.motors.rightAuxEncoderSign}")
     print(f" Controller selected   : {controllerName}")
     print(f" Controller algorithm  : {config.controller.algorithm}")
     if str(config.controller.algorithm).strip().lower() == "pid":
@@ -183,12 +219,17 @@ def Main():
     hub = PrimeHub()
     leftMotor = Motor(MotorPort(config.motors.leftPort))
     rightMotor = Motor(MotorPort(config.motors.rightPort))
+    rightAuxMotor = None
+    if HasRightAuxMotor(config):
+        rightAuxMotor = Motor(MotorPort(config.motors.rightAuxPort))
     estimator = StateEstimator(config)
     controller = BuildBalanceController(config)
     safety = SafetyMonitor(config)
 
     leftMotor.reset_angle(0)
     rightMotor.reset_angle(0)
+    if rightAuxMotor is not None:
+        rightAuxMotor.reset_angle(0)
     estimator.Reset()
     controller.Reset()
 
@@ -217,12 +258,11 @@ def Main():
     while sw.time() < RUN_DURATION_MS:
         if CenterPressed(hub):
             print("CENTER BUTTON pressed, aborting balance run.")
-            leftMotor.stop()
-            rightMotor.stop()
+            StopMotors(leftMotor, rightMotor, rightAuxMotor)
             return
 
         timeSec = sw.time() / 1000.0
-        measurement = MakeMeasurement(hub, leftMotor, rightMotor, timeSec, config)
+        measurement = MakeMeasurement(hub, leftMotor, rightMotor, rightAuxMotor, timeSec, config)
         state = estimator.Update(measurement)
         rawCommand = controller.Compute(state)
         safeCommand = safety.Check(state, rawCommand, currentTime=timeSec)
@@ -257,6 +297,13 @@ def Main():
             config.motors.rightEncoderSign,
             safeCommand.rightCommand,
         )
+        if rightAuxMotor is not None:
+            RunVelocity(
+                rightAuxMotor,
+                config.motors.forwardSign,
+                config.motors.rightAuxEncoderSign,
+                safeCommand.rightCommand,
+            )
 
         if iteration % telemetryEveryN == 0:
             if safety.status.tripped:
@@ -279,10 +326,8 @@ def Main():
             nextTickMs = sw.time()
         nextTickMs += loopPeriodMs
 
-    leftMotor.stop()
-    rightMotor.stop()
-    leftMotor.brake()
-    rightMotor.brake()
+    StopMotors(leftMotor, rightMotor, rightAuxMotor)
+    BrakeMotors(leftMotor, rightMotor, rightAuxMotor)
 
     print("============================================================")
     print(" HubPackageBalance DONE")
