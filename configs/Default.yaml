@@ -40,8 +40,9 @@ imu:
   tiltSign: -1                 # +1 or -1 to flip sign convention if needed
   # zeroOffset: -1.0471975512   # radians, calibrated zero (-60 deg)
   # zeroOffset: -0.872665   # radians, calibrated zero (-50 deg)
-  zeroOffset: -0.785398   # radians, calibrated zero (-45 deg)
+  # zeroOffset: -0.785398   # radians, calibrated zero (-45 deg)
   # zeroOffset: -0.698131701   # radians, calibrated zero (-40 deg)
+  zeroOffset: -0.7801621756   # radians, calibrated zero (-44.7 deg)
   gyroBias: 0.0               # rad/s, calibrated bias
 
 # Estimator parameters.
@@ -61,15 +62,18 @@ control:
 
 # Nonlinear balancing controller tuning.
 controller:
-  lambdaTheta: 6.0            # sliding variable tilt weight
-  lambdaPhiDot: 0.05          # sliding variable wheel-rate drift weight
-  lambdaPhi: 0.01             # sliding variable wheel-position drift weight
-  kTheta: 45.0                # tilt proportional velocity gain
-  kThetaDot: 7.5              # tilt-rate velocity gain
-  kPhi: 1.5                   # wheel-position centering velocity gain
-  kPhiDot: 3.0                # wheel-rate damping velocity gain
-  kSigma: 2.0                 # boundary-layer switching velocity gain
-  boundaryLayerWidth: 0.5     # wider is smoother near the reference
+  lambdaTheta: 4.0            # sliding variable tilt weight
+  lambdaPhiDot: 0.2           # sliding variable wheel-rate drift weight
+  lambdaPhi: 0.2              # sliding variable wheel-position drift weight
+  kTheta: 85.0                # tilt proportional velocity gain
+  kThetaDot: 4.0              # tilt-rate velocity gain
+  kPhi: 0.2                   # wheel-position centering velocity gain
+  kPhiDot: 1.5                # wheel-rate damping velocity gain
+  kSigma: 1.0                 # boundary-layer switching velocity gain
+  boundaryLayerWidth: 2.0     # wider is smoother near the reference
+  thetaDeadband: 0.0052359878     # rad, ignore +/-0.3 deg tilt noise near upright
+  thetaDotDeadband: 0.2617993878  # rad/s, ignore +/-15 deg/s tilt-rate noise
+  commandSlewRate: 87.2664626     # rad/s^2, max command change (~5000 deg/s^2)
 
 # Pre balancing drive command path. Used by DriveCommandController and the
 # forward/backward/stop smoke flows. These mirror the values validated on

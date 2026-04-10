@@ -72,12 +72,64 @@ def test_ComputeUsesConfiguredControllerGains():
     config.controller.kPhi = 0.0
     config.controller.kPhiDot = 0.0
     config.controller.kSigma = 0.0
+    config.controller.thetaDeadband = 0.0
+    config.controller.thetaDotDeadband = 0.0
     controller = NonLinearController(config)
 
     output = controller.Compute(_BuildValidState(tilt=0.3))
 
     assert output.leftCommand == pytest.approx(0.6)
     assert output.rightCommand == pytest.approx(0.6)
+
+
+def test_ComputeAppliesConfiguredQuietDeadbands():
+    config = LoadConfig(applyLocalOverride=False)
+    config.controller.lambdaTheta = 0.0
+    config.controller.lambdaPhiDot = 0.0
+    config.controller.lambdaPhi = 0.0
+    config.controller.kTheta = 10.0
+    config.controller.kThetaDot = 10.0
+    config.controller.kPhi = 0.0
+    config.controller.kPhiDot = 0.0
+    config.controller.kSigma = 0.0
+    config.controller.thetaDeadband = 0.1
+    config.controller.thetaDotDeadband = 0.2
+    controller = NonLinearController(config)
+
+    quiet = controller.Compute(_BuildValidState(tilt=0.08, tiltRate=-0.15))
+    active = controller.Compute(_BuildValidState(tilt=0.3, tiltRate=-0.5))
+
+    assert quiet.leftCommand == pytest.approx(0.0)
+    assert quiet.rightCommand == pytest.approx(0.0)
+    assert active.leftCommand == pytest.approx(-1.0)
+    assert active.rightCommand == pytest.approx(-1.0)
+
+
+def test_ComputeLimitsCommandSlewRate():
+    config = LoadConfig(applyLocalOverride=False)
+    config.control.maxWheelRate = 100.0
+    config.controller.lambdaTheta = 0.0
+    config.controller.lambdaPhiDot = 0.0
+    config.controller.lambdaPhi = 0.0
+    config.controller.kTheta = 10.0
+    config.controller.kThetaDot = 0.0
+    config.controller.kPhi = 0.0
+    config.controller.kPhiDot = 0.0
+    config.controller.kSigma = 0.0
+    config.controller.thetaDeadband = 0.0
+    config.controller.thetaDotDeadband = 0.0
+    config.controller.commandSlewRate = 2.0
+    controller = NonLinearController(config)
+
+    first = controller.Compute(_BuildValidState(tilt=0.0, timestamp=0.0))
+    second = controller.Compute(_BuildValidState(tilt=1.0, timestamp=0.25))
+    third = controller.Compute(_BuildValidState(tilt=-1.0, timestamp=0.50))
+
+    assert first.leftCommand == pytest.approx(0.0)
+    assert second.leftCommand == pytest.approx(0.5)
+    assert third.leftCommand == pytest.approx(0.0)
+    assert second.rightCommand == pytest.approx(second.leftCommand)
+    assert third.rightCommand == pytest.approx(third.leftCommand)
 
 
 def test_ResetClearsInternalBookkeeping():

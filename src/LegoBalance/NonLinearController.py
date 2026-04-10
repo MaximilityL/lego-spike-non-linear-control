@@ -64,7 +64,6 @@ not a strict torque-input SMC derivation from the full rigid-body equations.
 That matches both the repo contract and the intended Pybricks deployment path.
 """
 
-from LegoBalance.BalanceState import BalanceState
 from LegoBalance.ControlInterfaces import ControlMode, ControlOutput
 from LegoBalance.ControllerBase import ControllerBase
 from LegoBalance.Saturation import SaturateSymmetric
@@ -86,10 +85,15 @@ class NonLinearController(ControllerBase):
         # - If it oscillates, increase kThetaDot and/or widen epsilon.
         # - If it balances but slowly drives away, increase kPhi or lambdaPhi.
         # - If commands chatter, widen epsilon and possibly reduce kSigma.
+        # - If upright hold is wavy, widen thetaDeadband/thetaDotDeadband.
+        # - If commands are too steppy, reduce commandSlewRate.
         controllerConfig = config.controller
         self._lambdaTheta = controllerConfig.lambdaTheta
         self._lambdaPhiDot = controllerConfig.lambdaPhiDot
         self._lambdaPhi = controllerConfig.lambdaPhi
+        self._thetaDeadband = controllerConfig.thetaDeadband
+        self._thetaDotDeadband = controllerConfig.thetaDotDeadband
+        self._commandSlewRate = controllerConfig.commandSlewRate
 
         # Positive tilt means leaning forward, and positive wheel velocity is
         # the corrective action in this repo's sign convention. That makes the
@@ -104,6 +108,7 @@ class NonLinearController(ControllerBase):
         self._lastTimestamp = 0.0
         self._lastSlidingVariable = 0.0
         self._lastCommand = 0.0
+        self._hasLastCommand = False
 
     def IsPlaceholder(self) -> bool:
         """Report that the controller now contains a real balancing law."""
@@ -127,15 +132,29 @@ class NonLinearController(ControllerBase):
             return -1.0
         return value
 
+    def _ApplyDeadband(self, value, width):
+        """Continuous deadband that preserves slope outside the quiet zone."""
+        if value != value:
+            return 0.0
+        if width <= 0.0:
+            return value
+        if value > width:
+            return value - width
+        if value < -width:
+            return value + width
+        return 0.0
+
     def _ComputeVelocityCommand(self, theta, thetaDot, phi, phiDot):
-        sigma = self._ComputeSlidingVariable(theta, thetaDot, phi, phiDot)
+        commandTheta = self._ApplyDeadband(theta, self._thetaDeadband)
+        commandThetaDot = self._ApplyDeadband(thetaDot, self._thetaDotDeadband)
+        sigma = self._ComputeSlidingVariable(commandTheta, commandThetaDot, phi, phiDot)
 
         # The linear part gives smooth local stabilization. The boundary-layer
         # term adds robustness against model mismatch and unmodeled bias
         # without the hard switching that would chatter on LEGO hardware.
         linearCommand = (
-            self._kTheta * theta
-            + self._kThetaDot * thetaDot
+            self._kTheta * commandTheta
+            + self._kThetaDot * commandThetaDot
             - self._kPhi * phi
             - self._kPhiDot * phiDot
         )
@@ -144,6 +163,22 @@ class NonLinearController(ControllerBase):
 
     def _ClampCommand(self, command):
         return SaturateSymmetric(command, self._maxWheelRate)
+
+    def _ApplyCommandSlewRate(self, targetCommand, timestamp):
+        if not self._hasLastCommand:
+            return targetCommand
+
+        dt = timestamp - self._lastTimestamp
+        if dt <= 0.0:
+            return targetCommand
+
+        maxDelta = self._commandSlewRate * dt
+        delta = targetCommand - self._lastCommand
+        if delta > maxDelta:
+            return self._lastCommand + maxDelta
+        if delta < -maxDelta:
+            return self._lastCommand - maxDelta
+        return targetCommand
 
     def Compute(self, state):
         """Compute one bounded symmetric wheel-velocity command.
@@ -168,11 +203,14 @@ class NonLinearController(ControllerBase):
             return ControlOutput.Stop(mode=ControlMode.Velocity, timestamp=state.timestamp)
 
         command, sigma = self._ComputeVelocityCommand(theta, thetaDot, phi, phiDot)
-        boundedCommand = self._ClampCommand(command)
+        targetCommand = self._ClampCommand(command)
+        boundedCommand = self._ApplyCommandSlewRate(targetCommand, state.timestamp)
+        boundedCommand = self._ClampCommand(boundedCommand)
 
         self._lastTimestamp = state.timestamp
         self._lastSlidingVariable = sigma
         self._lastCommand = boundedCommand
+        self._hasLastCommand = True
 
         return ControlOutput(
             leftCommand=boundedCommand,
@@ -186,3 +224,4 @@ class NonLinearController(ControllerBase):
         self._lastTimestamp = 0.0
         self._lastSlidingVariable = 0.0
         self._lastCommand = 0.0
+        self._hasLastCommand = False

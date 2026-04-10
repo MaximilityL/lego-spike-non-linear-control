@@ -51,7 +51,7 @@ RIGHT_ENCODER_SIGN = -1
 
 # IMU configuration from Default.yaml
 TILT_SIGN = -1
-ZERO_OFFSET_DEG = -40.0
+ZERO_OFFSET_DEG = -44.7  # calibrated zero in degrees. This is a best effort number from the real robot. You may need to adjust it for your build. The hub IMU is not perfectly repeat
 GYRO_BIAS_DEG_PER_SEC = 0.0
 DEG_TO_RAD = 0.017453292519943295
 

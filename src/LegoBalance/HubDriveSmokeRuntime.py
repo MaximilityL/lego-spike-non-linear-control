@@ -35,7 +35,7 @@ class ImuConfig:
     def __init__(self):
         self.tiltAxis = 'pitch'
         self.tiltSign = -1
-        self.zeroOffset = -0.785398
+        self.zeroOffset = -0.7801621756
         self.gyroBias = 0.0
 
 
@@ -58,15 +58,18 @@ class ControlConfig:
 
 class ControllerConfig:
     def __init__(self):
-        self.lambdaTheta = 6.0
-        self.lambdaPhiDot = 0.05
-        self.lambdaPhi = 0.01
-        self.kTheta = 45.0
-        self.kThetaDot = 7.5
-        self.kPhi = 1.5
-        self.kPhiDot = 3.0
-        self.kSigma = 2.0
-        self.boundaryLayerWidth = 0.5
+        self.lambdaTheta = 4.0
+        self.lambdaPhiDot = 0.2
+        self.lambdaPhi = 0.2
+        self.kTheta = 85.0
+        self.kThetaDot = 4.0
+        self.kPhi = 0.2
+        self.kPhiDot = 1.5
+        self.kSigma = 1.0
+        self.boundaryLayerWidth = 2.0
+        self.thetaDeadband = 0.0052359878
+        self.thetaDotDeadband = 0.2617993878
+        self.commandSlewRate = 87.2664626
 
 
 class DriveConfig:

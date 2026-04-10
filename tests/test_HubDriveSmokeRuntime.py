@@ -48,6 +48,11 @@ def test_HubDefaultConfigMatchesDesktopDefaultConfig():
     assert hub.controller.boundaryLayerWidth == pytest.approx(
         desktop.controller.boundaryLayerWidth
     )
+    assert hub.controller.thetaDeadband == pytest.approx(desktop.controller.thetaDeadband)
+    assert hub.controller.thetaDotDeadband == pytest.approx(
+        desktop.controller.thetaDotDeadband
+    )
+    assert hub.controller.commandSlewRate == pytest.approx(desktop.controller.commandSlewRate)
     assert hub.drive.loopPeriodMs == desktop.drive.loopPeriodMs
     assert hub.drive.printEveryN == desktop.drive.printEveryN
     assert hub.drive.stopDurationMs == desktop.drive.stopDurationMs

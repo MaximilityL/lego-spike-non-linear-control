@@ -116,6 +116,9 @@ class ControllerConfig:
         self.kPhiDot = {_FmtFloat(config.controller.kPhiDot)}
         self.kSigma = {_FmtFloat(config.controller.kSigma)}
         self.boundaryLayerWidth = {_FmtFloat(config.controller.boundaryLayerWidth)}
+        self.thetaDeadband = {_FmtFloat(config.controller.thetaDeadband)}
+        self.thetaDotDeadband = {_FmtFloat(config.controller.thetaDotDeadband)}
+        self.commandSlewRate = {_FmtFloat(config.controller.commandSlewRate)}
 
 
 class DriveConfig:

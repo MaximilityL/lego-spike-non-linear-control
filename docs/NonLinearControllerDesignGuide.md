@@ -121,6 +121,9 @@ The controller constructor receives the full `RobotConfig`. Useful fields includ
 - `self.config.controller.kPhiDot`
 - `self.config.controller.kSigma`
 - `self.config.controller.boundaryLayerWidth`
+- `self.config.controller.thetaDeadband`
+- `self.config.controller.thetaDotDeadband`
+- `self.config.controller.commandSlewRate`
 
 If the controller needs precomputed gains or matrices, load or build them in `__init__`.
 Keep `Compute` focused on one control step.

@@ -37,8 +37,8 @@ else:
     from LegoBalance.HubInterface import HubInterface
     from LegoBalance.ImuInterface import ImuInterface
     from LegoBalance.LyapunovController import LyapunovController
-    from LegoBalance.NonLinearController import NonLinearController
     from LegoBalance.MotorInterface import MotorInterface
+    from LegoBalance.NonLinearController import NonLinearController
     from LegoBalance.RobotConfig import ControllerConfig, LoadConfig, RobotConfig
     from LegoBalance.SafetyMonitor import SafetyMonitor, SafetyStatus
     from LegoBalance.Saturation import SaturateScalar, SaturateVector
