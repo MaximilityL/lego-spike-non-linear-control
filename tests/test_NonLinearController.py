@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 import pytest
 
 from LegoBalance.BalanceState import BalanceState
@@ -22,6 +24,13 @@ def _BuildValidState(**overrides) -> BalanceState:
     }
     defaults.update(overrides)
     return BalanceState(**defaults)
+
+
+def _AlphaEstimate(config) -> float:
+    m = config.chassis.bodyMass
+    l = config.chassis.bodyHeightCoM
+    I = config.chassis.bodyInertia
+    return m * 9.81 * l / (I + m * l * l)
 
 
 def test_IsPlaceholderFalseForRealController():
@@ -64,34 +73,37 @@ def test_ComputeSaturatesAgainstConfiguredWheelRate():
 
 def test_ComputeUsesConfiguredControllerGains():
     config = LoadConfig(applyLocalOverride=False)
-    config.controller.lambdaTheta = 0.0
-    config.controller.lambdaPhiDot = 0.0
-    config.controller.lambdaPhi = 0.0
+    config.control.maxWheelRate = 100.0
+    config.controller.gravityCompGain = 1.0
     config.controller.kTheta = 2.0
-    config.controller.kThetaDot = 0.0
-    config.controller.kPhi = 0.0
-    config.controller.kPhiDot = 0.0
-    config.controller.kSigma = 0.0
+    config.controller.kThetaDot = 3.0
+    config.controller.kPhi = 4.0
+    config.controller.kPhiDot = 5.0
     config.controller.thetaDeadband = 0.0
     config.controller.thetaDotDeadband = 0.0
     controller = NonLinearController(config)
 
-    output = controller.Compute(_BuildValidState(tilt=0.3))
+    state = _BuildValidState(tilt=0.3, tiltRate=0.2, phi=0.1, phiDot=0.05)
+    output = controller.Compute(state)
+    expected = (
+        _AlphaEstimate(config) * math.sin(state.tilt)
+        + 2.0 * state.tilt
+        + 3.0 * state.tiltRate
+        - 4.0 * state.phi
+        - 5.0 * state.phiDot
+    )
 
-    assert output.leftCommand == pytest.approx(0.6)
-    assert output.rightCommand == pytest.approx(0.6)
+    assert output.leftCommand == pytest.approx(expected)
+    assert output.rightCommand == pytest.approx(expected)
 
 
 def test_ComputeAppliesConfiguredQuietDeadbands():
     config = LoadConfig(applyLocalOverride=False)
-    config.controller.lambdaTheta = 0.0
-    config.controller.lambdaPhiDot = 0.0
-    config.controller.lambdaPhi = 0.0
+    config.controller.gravityCompGain = 0.0
     config.controller.kTheta = 10.0
     config.controller.kThetaDot = 10.0
     config.controller.kPhi = 0.0
     config.controller.kPhiDot = 0.0
-    config.controller.kSigma = 0.0
     config.controller.thetaDeadband = 0.1
     config.controller.thetaDotDeadband = 0.2
     controller = NonLinearController(config)
@@ -105,47 +117,36 @@ def test_ComputeAppliesConfiguredQuietDeadbands():
     assert active.rightCommand == pytest.approx(-1.0)
 
 
-def test_ComputeLimitsCommandSlewRate():
+def test_ComputeUsesRawThetaForGravityCompensationEvenInsideDeadband():
     config = LoadConfig(applyLocalOverride=False)
     config.control.maxWheelRate = 100.0
-    config.controller.lambdaTheta = 0.0
-    config.controller.lambdaPhiDot = 0.0
-    config.controller.lambdaPhi = 0.0
-    config.controller.kTheta = 10.0
+    config.controller.gravityCompGain = 1.0
+    config.controller.kTheta = 0.0
     config.controller.kThetaDot = 0.0
     config.controller.kPhi = 0.0
     config.controller.kPhiDot = 0.0
-    config.controller.kSigma = 0.0
-    config.controller.thetaDeadband = 0.0
-    config.controller.thetaDotDeadband = 0.0
-    config.controller.commandSlewRate = 2.0
+    config.controller.thetaDeadband = 1.0
+    config.controller.thetaDotDeadband = 1.0
     controller = NonLinearController(config)
 
-    first = controller.Compute(_BuildValidState(tilt=0.0, timestamp=0.0))
-    second = controller.Compute(_BuildValidState(tilt=1.0, timestamp=0.25))
-    third = controller.Compute(_BuildValidState(tilt=-1.0, timestamp=0.50))
+    output = controller.Compute(_BuildValidState(tilt=0.05))
+    expected = _AlphaEstimate(config) * math.sin(0.05)
 
-    assert first.leftCommand == pytest.approx(0.0)
-    assert second.leftCommand == pytest.approx(0.5)
-    assert third.leftCommand == pytest.approx(0.0)
-    assert second.rightCommand == pytest.approx(second.leftCommand)
-    assert third.rightCommand == pytest.approx(third.leftCommand)
+    assert output.leftCommand == pytest.approx(expected)
+    assert output.rightCommand == pytest.approx(expected)
 
 
-def test_ResetClearsInternalBookkeeping():
+def test_ResetKeepsMemorylessControllerDeterministic():
     config = LoadConfig(applyLocalOverride=False)
     controller = NonLinearController(config)
     state = _BuildValidState(tilt=0.05, tiltRate=0.1, phi=0.02, phiDot=0.03, timestamp=3.0)
-    controller.Compute(state)
-    assert controller._lastTimestamp == pytest.approx(3.0)
-    assert controller._lastSlidingVariable != 0.0
-    assert controller._lastCommand != 0.0
+    beforeReset = controller.Compute(state)
 
     controller.Reset()
+    afterReset = controller.Compute(state)
 
-    assert controller._lastTimestamp == 0.0
-    assert controller._lastSlidingVariable == 0.0
-    assert controller._lastCommand == 0.0
+    assert afterReset.leftCommand == pytest.approx(beforeReset.leftCommand)
+    assert afterReset.rightCommand == pytest.approx(beforeReset.rightCommand)
 
 
 def test_ForwardLeanCommandsForwardWheelMotion():

@@ -31,18 +31,13 @@ def test_DefaultConfigLoadsAndValidates():
     assert config.control.maxTilt == pytest.approx(2.0)
     assert config.control.maxWheelRate == pytest.approx(17.44)
     assert config.control.targetTilt == pytest.approx(0.0)
-    assert config.controller.lambdaTheta == pytest.approx(4.0)
-    assert config.controller.lambdaPhiDot == pytest.approx(0.2)
-    assert config.controller.lambdaPhi == pytest.approx(0.2)
-    assert config.controller.kTheta == pytest.approx(85.0)
-    assert config.controller.kThetaDot == pytest.approx(4.0)
-    assert config.controller.kPhi == pytest.approx(0.2)
+    assert config.controller.gravityCompGain == pytest.approx(1.0)
+    assert config.controller.kTheta == pytest.approx(60.0)
+    assert config.controller.kThetaDot == pytest.approx(10.0)
+    assert config.controller.kPhi == pytest.approx(0.3)
     assert config.controller.kPhiDot == pytest.approx(1.5)
-    assert config.controller.kSigma == pytest.approx(1.0)
-    assert config.controller.boundaryLayerWidth == pytest.approx(2.0)
     assert config.controller.thetaDeadband == pytest.approx(0.0052359878)
     assert config.controller.thetaDotDeadband == pytest.approx(0.2617993878)
-    assert config.controller.commandSlewRate == pytest.approx(87.2664626)
     assert config.drive.loopPeriodMs == 20
     assert config.drive.printEveryN == 1
     assert config.drive.stopDurationMs == 50
@@ -71,7 +66,7 @@ def test_LoadConfigAcceptsExplicitPath(tmp_path: Path):
         "motors": {"leftPort": "C", "rightPort": "D"},
         "estimator": {"alpha": 0.5},
         "control": {"maxTilt": 1.0},
-        "controller": {"kTheta": 12.5, "boundaryLayerWidth": 0.4},
+        "controller": {"kTheta": 12.5, "gravityCompGain": 0.4},
         "drive": {"maxTiltForMotion": 0.5},
     }
     customPath = tmp_path / "custom.yaml"
@@ -82,7 +77,7 @@ def test_LoadConfigAcceptsExplicitPath(tmp_path: Path):
     assert config.motors.leftPort == "C"
     assert config.estimator.alpha == pytest.approx(0.5)
     assert config.controller.kTheta == pytest.approx(12.5)
-    assert config.controller.boundaryLayerWidth == pytest.approx(0.4)
+    assert config.controller.gravityCompGain == pytest.approx(0.4)
 
 
 def test_LoadConfigRejectsBadAlpha(tmp_path: Path):
@@ -111,8 +106,16 @@ def test_LoadConfigRejectsBadEncoderSign(tmp_path: Path):
         LoadConfig(path=badPath)
 
 
-def test_LoadConfigRejectsBadControllerBoundaryLayer(tmp_path: Path):
-    bad = {"controller": {"boundaryLayerWidth": 0.0}}
+def test_LoadConfigRejectsBadTiltAxis(tmp_path: Path):
+    bad = {"imu": {"tiltAxis": "yaw"}}
+    badPath = tmp_path / "bad.yaml"
+    badPath.write_text(yaml.safe_dump(bad))
+    with pytest.raises(ValueError):
+        LoadConfig(path=badPath)
+
+
+def test_LoadConfigRejectsNegativeGravityCompGain(tmp_path: Path):
+    bad = {"controller": {"gravityCompGain": -0.1}}
     badPath = tmp_path / "bad.yaml"
     badPath.write_text(yaml.safe_dump(bad))
     with pytest.raises(ValueError):
@@ -121,14 +124,6 @@ def test_LoadConfigRejectsBadControllerBoundaryLayer(tmp_path: Path):
 
 def test_LoadConfigRejectsBadControllerDeadband(tmp_path: Path):
     bad = {"controller": {"thetaDotDeadband": -0.1}}
-    badPath = tmp_path / "bad.yaml"
-    badPath.write_text(yaml.safe_dump(bad))
-    with pytest.raises(ValueError):
-        LoadConfig(path=badPath)
-
-
-def test_LoadConfigRejectsBadControllerCommandSlewRate(tmp_path: Path):
-    bad = {"controller": {"commandSlewRate": 0.0}}
     badPath = tmp_path / "bad.yaml"
     badPath.write_text(yaml.safe_dump(bad))
     with pytest.raises(ValueError):

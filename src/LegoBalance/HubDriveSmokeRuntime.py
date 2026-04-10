@@ -13,18 +13,18 @@ small Pybricks-friendly config object because the hub cannot parse YAML.
 class ChassisConfig:
     def __init__(self):
         self.wheelRadius = 0.0285
-        self.wheelBase = 0.08
-        self.bodyMass = 0.4
-        self.bodyHeightCoM = 0.04
-        self.bodyInertia = 0.006
+        self.wheelBase = 0.113
+        self.bodyMass = 0.276
+        self.bodyHeightCoM = 0.09
+        self.bodyInertia = 0.00356
 
 
 class MotorsConfig:
     def __init__(self):
         self.leftPort = 'B'
-        self.rightPort = 'A'
+        self.rightPort = 'F'
         self.maxAngularRate = 17.4532925199
-        self.maxDuty = 80.0
+        self.maxDuty = 90.0
         self.encoderCountsPerRev = 360
         self.forwardSign = -1
         self.leftEncoderSign = 1
@@ -33,9 +33,9 @@ class MotorsConfig:
 
 class ImuConfig:
     def __init__(self):
-        self.tiltAxis = 'pitch'
-        self.tiltSign = -1
-        self.zeroOffset = -0.7801621756
+        self.tiltAxis = 'roll'
+        self.tiltSign = 1
+        self.zeroOffset = -1.6231562044
         self.gyroBias = 0.0
 
 
@@ -53,23 +53,18 @@ class ControlConfig:
         self.maxTiltRate = 10.0
         self.maxWheelRate = 17.44
         self.watchdogTimeout = 0.2
-        self.targetTilt = 0.0
+        self.targetTilt = -0.0
 
 
 class ControllerConfig:
     def __init__(self):
-        self.lambdaTheta = 4.0
-        self.lambdaPhiDot = 0.2
-        self.lambdaPhi = 0.2
-        self.kTheta = 85.0
-        self.kThetaDot = 4.0
-        self.kPhi = 0.2
+        self.gravityCompGain = 0.5
+        self.kTheta = 30.0
+        self.kThetaDot = 12.0
+        self.kPhi = 0.3
         self.kPhiDot = 1.5
-        self.kSigma = 1.0
-        self.boundaryLayerWidth = 2.0
-        self.thetaDeadband = 0.0052359878
+        self.thetaDeadband = 0.017453293
         self.thetaDotDeadband = 0.2617993878
-        self.commandSlewRate = 87.2664626
 
 
 class DriveConfig:
@@ -91,7 +86,7 @@ class LoggingConfig:
 
 class RobotConfig:
     def __init__(self):
-        self.name = 'LegoBalance Mk0'
+        self.name = 'LegoBalance Mk1'
         self.description = 'Two wheel self balancing inverted pendulum on LEGO SPIKE Prime.'
         self.chassis = ChassisConfig()
         self.motors = MotorsConfig()

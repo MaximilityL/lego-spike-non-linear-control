@@ -55,12 +55,38 @@ def MotorPort(name):
     raise ValueError(f"unsupported motor port: {name}")
 
 
-def MakeMeasurement(hub, leftMotor, rightMotor, timestampSec):
-    pitchDeg, _ = hub.imu.tilt()
-    _, gyDegPerSec, _ = hub.imu.angular_velocity()
+def SelectTiltAngleDeg(tiltAxis, pitchDeg, rollDeg):
+    axis = str(tiltAxis).strip().lower()
+    if axis == "pitch":
+        return pitchDeg
+    if axis == "roll":
+        return rollDeg
+    raise ValueError("unsupported imu.tiltAxis: " + str(tiltAxis))
+
+
+def SelectTiltRateDegPerSec(tiltAxis, gxDegPerSec, gyDegPerSec):
+    axis = str(tiltAxis).strip().lower()
+    # Pybricks returns tilt as (pitch, roll). The matching gyro components
+    # are gy for pitch and gx for roll.
+    if axis == "pitch":
+        return gyDegPerSec
+    if axis == "roll":
+        return gxDegPerSec
+    raise ValueError("unsupported imu.tiltAxis: " + str(tiltAxis))
+
+
+def MakeMeasurement(hub, leftMotor, rightMotor, timestampSec, config):
+    pitchDeg, rollDeg = hub.imu.tilt()
+    gxDegPerSec, gyDegPerSec, _ = hub.imu.angular_velocity()
+    tiltAngleDeg = SelectTiltAngleDeg(config.imu.tiltAxis, pitchDeg, rollDeg)
+    tiltRateDegPerSec = SelectTiltRateDegPerSec(
+        config.imu.tiltAxis,
+        gxDegPerSec,
+        gyDegPerSec,
+    )
     return Measurement(
-        tiltAngle=DegToRad(pitchDeg),
-        tiltRate=DegPerSecToRadPerSec(gyDegPerSec),
+        tiltAngle=DegToRad(tiltAngleDeg),
+        tiltRate=DegPerSecToRadPerSec(tiltRateDegPerSec),
         leftWheelAngle=DegToRad(leftMotor.angle()),
         rightWheelAngle=DegToRad(rightMotor.angle()),
         leftWheelRate=DegPerSecToRadPerSec(leftMotor.speed()),
@@ -106,6 +132,7 @@ def PrintBanner(config, loopPeriodMs, telemetryEveryN):
     print(f"   target tilt         : {RadToDeg(config.control.targetTilt):+.2f} deg")
     print(f"   max tilt            : {RadToDeg(config.control.maxTilt):.1f} deg")
     print(f"   max wheel rate      : {RadPerSecToDegPerSec(config.control.maxWheelRate):.1f} deg/s")
+    print(f"   tilt axis           : {config.imu.tiltAxis}")
     print(f"   tilt sign           : {config.imu.tiltSign}")
     print(f"   zero offset         : {RadToDeg(config.imu.zeroOffset):.1f} deg")
     print(f"   gyro bias           : {RadPerSecToDegPerSec(config.imu.gyroBias):.1f} deg/s")
@@ -167,7 +194,7 @@ def Main():
             return
 
         timeSec = sw.time() / 1000.0
-        measurement = MakeMeasurement(hub, leftMotor, rightMotor, timeSec)
+        measurement = MakeMeasurement(hub, leftMotor, rightMotor, timeSec, config)
         state = estimator.Update(measurement)
         controllerState = BuildControllerState(state, config.control.targetTilt)
         rawCommand = controller.Compute(controllerState)

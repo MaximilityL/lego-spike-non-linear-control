@@ -107,18 +107,13 @@ class ControlConfig:
 
 class ControllerConfig:
     def __init__(self):
-        self.lambdaTheta = {_FmtFloat(config.controller.lambdaTheta)}
-        self.lambdaPhiDot = {_FmtFloat(config.controller.lambdaPhiDot)}
-        self.lambdaPhi = {_FmtFloat(config.controller.lambdaPhi)}
+        self.gravityCompGain = {_FmtFloat(config.controller.gravityCompGain)}
         self.kTheta = {_FmtFloat(config.controller.kTheta)}
         self.kThetaDot = {_FmtFloat(config.controller.kThetaDot)}
         self.kPhi = {_FmtFloat(config.controller.kPhi)}
         self.kPhiDot = {_FmtFloat(config.controller.kPhiDot)}
-        self.kSigma = {_FmtFloat(config.controller.kSigma)}
-        self.boundaryLayerWidth = {_FmtFloat(config.controller.boundaryLayerWidth)}
         self.thetaDeadband = {_FmtFloat(config.controller.thetaDeadband)}
         self.thetaDotDeadband = {_FmtFloat(config.controller.thetaDotDeadband)}
-        self.commandSlewRate = {_FmtFloat(config.controller.commandSlewRate)}
 
 
 class DriveConfig:

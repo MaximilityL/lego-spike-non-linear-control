@@ -66,20 +66,15 @@ class ControlConfig:
 
 @dataclass
 class ControllerConfig:
-    """Tuning constants for the nonlinear balancing controller."""
+    """Tuning constants for the CLF nonlinear balancing controller."""
 
-    lambdaTheta: float = 4.0
-    lambdaPhiDot: float = 0.2
-    lambdaPhi: float = 0.2
-    kTheta: float = 85.0
-    kThetaDot: float = 4.0
-    kPhi: float = 0.2
+    gravityCompGain: float = 1.0
+    kTheta: float = 60.0
+    kThetaDot: float = 10.0
+    kPhi: float = 0.3
     kPhiDot: float = 1.5
-    kSigma: float = 1.0
-    boundaryLayerWidth: float = 2.0
     thetaDeadband: float = 0.005235987755982988
     thetaDotDeadband: float = 0.2617993877991494
-    commandSlewRate: float = 87.26646259971647
 
 
 @dataclass
@@ -141,14 +136,12 @@ class RobotConfig:
             raise ValueError("control.loopRate must be positive")
         if self.control.maxTilt <= 0:
             raise ValueError("control.maxTilt must be positive")
+        if str(self.imu.tiltAxis).strip().lower() not in ("pitch", "roll"):
+            raise ValueError("imu.tiltAxis must be 'pitch' or 'roll'")
         if self.imu.tiltSign not in (-1, 1):
             raise ValueError("imu.tiltSign must be +1 or -1")
-        if self.controller.lambdaTheta < 0:
-            raise ValueError("controller.lambdaTheta must be non negative")
-        if self.controller.lambdaPhiDot < 0:
-            raise ValueError("controller.lambdaPhiDot must be non negative")
-        if self.controller.lambdaPhi < 0:
-            raise ValueError("controller.lambdaPhi must be non negative")
+        if self.controller.gravityCompGain < 0:
+            raise ValueError("controller.gravityCompGain must be non negative")
         if self.controller.kTheta < 0:
             raise ValueError("controller.kTheta must be non negative")
         if self.controller.kThetaDot < 0:
@@ -157,16 +150,10 @@ class RobotConfig:
             raise ValueError("controller.kPhi must be non negative")
         if self.controller.kPhiDot < 0:
             raise ValueError("controller.kPhiDot must be non negative")
-        if self.controller.kSigma < 0:
-            raise ValueError("controller.kSigma must be non negative")
-        if self.controller.boundaryLayerWidth <= 0:
-            raise ValueError("controller.boundaryLayerWidth must be positive")
         if self.controller.thetaDeadband < 0:
             raise ValueError("controller.thetaDeadband must be non negative")
         if self.controller.thetaDotDeadband < 0:
             raise ValueError("controller.thetaDotDeadband must be non negative")
-        if self.controller.commandSlewRate <= 0:
-            raise ValueError("controller.commandSlewRate must be positive")
         if self.drive.testSpeed < 0:
             raise ValueError("drive.testSpeed must be non negative")
         if self.drive.loopPeriodMs <= 0:

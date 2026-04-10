@@ -2,7 +2,7 @@
 
 This laptop-side script does three things in one flow:
 
-1. regenerates ``LegoBalance.HubDriveSmokeRuntime`` from the desktop YAML,
+1. regenerates ``LegoBalance.HubDriveSmokeRuntime`` from the selected desktop YAML,
 2. launches ``src/HubPackageBalance.py`` through ``pybricksdev``,
 3. streams the real hub telemetry into live matplotlib plots.
 
@@ -48,6 +48,13 @@ os.environ.setdefault("MPLCONFIGDIR", str(MPLCONFIGDIR))
 DEFAULT_HUB_SCRIPT = SRC_ROOT / "HubPackageBalance.py"
 DEFAULT_OUTPUT_PATH = REPO_ROOT / "plots" / "HubPackageBalanceLive.png"
 DATA_PREFIX = "DATA,"
+
+
+def RelativeToRepo(path: Path) -> str:
+    try:
+        return str(Path(path).resolve().relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path)
 
 
 @dataclass(frozen=True)
@@ -215,14 +222,13 @@ def StartReader(
         return None, thread
 
     from GenerateHubDriveSmokeRuntime import GenerateHubDriveSmokeRuntime
-    from LegoBalance.RobotConfig import DEFAULT_CONFIG_PATH
 
-    generatedPath = GenerateHubDriveSmokeRuntime(DEFAULT_CONFIG_PATH)
+    generatedPath = GenerateHubDriveSmokeRuntime(args.config)
     print(
         "Generated "
-        + str(generatedPath.relative_to(REPO_ROOT))
+        + RelativeToRepo(generatedPath)
         + " from "
-        + str(DEFAULT_CONFIG_PATH.relative_to(REPO_ROOT)),
+        + RelativeToRepo(Path(args.config)),
         file=sys.stderr,
     )
 
@@ -360,6 +366,8 @@ def RunPlotLoop(
 
 
 def ParseArgs() -> argparse.Namespace:
+    from LegoBalance.RobotConfig import DEFAULT_CONFIG_PATH
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--stdin",
@@ -376,6 +384,12 @@ def ParseArgs() -> argparse.Namespace:
         type=Path,
         default=DEFAULT_HUB_SCRIPT,
         help="HubPackageBalance.py path passed to pybricksdev",
+    )
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=DEFAULT_CONFIG_PATH,
+        help="YAML config used to regenerate the hub runtime before launch",
     )
     parser.add_argument(
         "--name",
@@ -410,6 +424,9 @@ def ParseArgs() -> argparse.Namespace:
 def ValidateArgs(args: argparse.Namespace) -> int:
     if args.stdin and args.log is not None:
         print("--stdin and --log are mutually exclusive", file=sys.stderr)
+        return 1
+    if not args.stdin and args.log is None and not Path(args.config).exists():
+        print(f"--config file not found: {args.config}", file=sys.stderr)
         return 1
     if args.window_sec <= 0.0:
         print("--window-sec must be positive", file=sys.stderr)

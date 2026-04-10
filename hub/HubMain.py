@@ -5,7 +5,7 @@ have flashed Pybricks. It does the following:
 
 1. Initializes the hub.
 2. Initializes the two drive motors on ports A and B.
-3. Reads the IMU pitch and the angular velocity.
+3. Reads the IMU roll and the angular velocity.
 4. Reads the encoder angles.
 5. Streams plot friendly telemetry rows to the Pybricks Code terminal.
 6. Stops cleanly when the center button is pressed.
@@ -41,7 +41,7 @@ from pybricks.tools import StopWatch, wait
 # at the same time when you change them.
 # ---------------------------------------------------------------------------
 LEFT_PORT = Port.B
-RIGHT_PORT = Port.A
+RIGHT_PORT = Port.F
 LOOP_PERIOD_MS = 20  # 50 Hz, comfortable on the hub for a sensor only loop
 PRINT_EVERY_N = 1    # print one line out of every N iterations
 WHEEL_RADIUS_M = 0.0285
@@ -50,8 +50,8 @@ LEFT_ENCODER_SIGN = 1
 RIGHT_ENCODER_SIGN = -1
 
 # IMU configuration from Default.yaml
-TILT_SIGN = -1
-ZERO_OFFSET_DEG = -44.7  # calibrated zero in degrees. This is a best effort number from the real robot. You may need to adjust it for your build. The hub IMU is not perfectly repeat
+TILT_SIGN = 1
+ZERO_OFFSET_DEG = -92.5  # calibrated zero in degrees. This is a best effort number from the real robot. You may need to adjust it for your build. The hub IMU is not perfectly repeat
 GYRO_BIAS_DEG_PER_SEC = 0.0
 DEG_TO_RAD = 0.017453292519943295
 
@@ -83,12 +83,12 @@ def Main():
             break
 
         # Read IMU. Pybricks returns degrees and deg/s.
-        pitchDeg, _ = hub.imu.tilt()
-        _, gy, _ = hub.imu.angular_velocity()
+        _, rollDeg = hub.imu.tilt()
+        gx, _, _ = hub.imu.angular_velocity()
 
         # Apply IMU configuration corrections
-        tiltDeg = TILT_SIGN * pitchDeg + ZERO_OFFSET_DEG
-        tiltRateDegPerSec = TILT_SIGN * gy - GYRO_BIAS_DEG_PER_SEC
+        tiltDeg = TILT_SIGN * rollDeg + ZERO_OFFSET_DEG
+        tiltRateDegPerSec = TILT_SIGN * gx - GYRO_BIAS_DEG_PER_SEC
 
         # Read encoders. Pybricks returns degrees and deg/s.
         leftAngleDeg = leftMotor.angle()
