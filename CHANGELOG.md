@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.3] - 2026-04-11
+
+### Added
+- Added a continuous on-hub calibration sweep for `imu.zeroOffset` or
+  `imu.gyroBias`. The balancer now stays running while it mutates one IMU
+  calibration field between fixed-length windows, gives each candidate a
+  settle period before scoring, and ranks windows by a weighted combination
+  of mean absolute tilt error and wheel-position drift relative to that
+  window's starting `phi` so later tests are not biased by earlier encoder
+  drift.
+- The sweep search itself is now logic-driven rather than a blind fixed grid:
+  it measures the baseline first, probes `+k` and `-k` in alternating
+  bracket pairs, commits to a direction only after two consecutive pairs
+  agree that one side beats baseline while the other does not, and then
+  climbs only in that confirmed direction until the phase cap or a safety
+  trip stops the run.
+- Added a laptop launcher for that sweep which regenerates the hub-safe
+  runtime from `configs/Default.yaml` before calling `pybricksdev`, then
+  streams the hub's per-window summaries and final best-value report to the
+  terminal (with optional tee-to-log support) instead of trying to postprocess
+  full telemetry.
+
+### Changed
+- Retuned the shipped IMU upright reference after the new sweep identified a
+  slightly better balance point on the current chassis. `imu.zeroOffset` was
+  moved from `+1.133 deg` to `+0.933 deg`, reducing the steady bias the
+  controller has to fight around the nominal upright.
+- Regenerated the package-backed hub runtime and refreshed the buffered
+  balance diagnostic plot so the committed runtime mirror and the checked-in
+  visual artifact match the new default calibration.
+
 ## [1.7.2] - 2026-04-11
 
 ### Changed

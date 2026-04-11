@@ -39,7 +39,7 @@ class ImuConfig:
     def __init__(self):
         self.tiltAxis = 'roll'
         self.tiltSign = 1
-        self.zeroOffset = 0.019779992
+        self.zeroOffset = 0.016279992
         self.gyroBias = 0.0
 
 

@@ -28,7 +28,7 @@ def test_DefaultConfigLoadsAndValidates():
     assert config.motors.rightEncoderSign == -1
     assert config.motors.rightAuxEncoderSign == -1
     assert config.motors.maxAngularRate == pytest.approx(17.4532925199)
-    assert config.imu.zeroOffset == pytest.approx(-0.025220008)
+    assert config.imu.zeroOffset == pytest.approx(0.016279992)
     assert 0.0 < config.estimator.alpha < 1.0
     assert config.control.maxTilt > 0
     assert config.control.maxTilt == pytest.approx(2.0)

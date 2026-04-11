@@ -53,7 +53,8 @@ imu:
   # zeroOffset: -0.698131701   # radians, calibrated zero (-40 deg)
   # zeroOffset: -0.7801621756   # radians, calibrated zero (-44.7 deg)
   # zeroOffset: -0.025220008 # radians, calibrated zero (-1.445 deg)
-  zeroOffset: 0.019779992 # radians, calibrated zero (+1.133 deg)
+  # zeroOffset: 0.019779992 # radians, calibrated zero (+1.133 deg)
+  zeroOffset: 0.016279992 # radians, calibrated zero (+0.933 deg)
   gyroBias: 0.0               # rad/s, calibrated bias
 
 # Estimator parameters.
