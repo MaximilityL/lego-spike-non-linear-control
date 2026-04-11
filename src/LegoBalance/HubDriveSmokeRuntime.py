@@ -111,7 +111,7 @@ class EffectsConfig:
     def __init__(self):
         self.enabled = True
         self.eyesEnabled = True
-        self.eyesPhiDeadbandDeg = 45.0
+        self.eyesPhiDeadbandDeg = 50.0
         self.qualityLightEnabled = True
         self.qualityRmsWindowSamples = 50
         self.qualityGreenThresholdDeg = 1.0

@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.5] - 2026-04-11
+
+### Added
+- Added a second post-run analysis pass for buffered balance logs. After the
+  standard time-series figure, the desktop plotter now computes the inner-loop
+  tracking error `e = theta - thetaRef`, a Lyapunov-like energy
+  `V = 0.5*thetaDot^2 + k*e^2`, and the gap between the raw and safety-clamped
+  wheel commands, then renders those signals as a dedicated diagnostic figure.
+  The point of the new view is to answer the logic questions the base plot does
+  not answer well: whether the run stayed near the intended operating region,
+  whether the phase trajectory stayed compact around upright, and how often the
+  controller was being saved by saturation rather than by nominal balance
+  action.
+- Added per-panel PNG export for the buffered plot workflow. Each run now also
+  emits standalone files for `theta`, `thetaDot`, `phi`, `phiDot`, wheel
+  command, tilt error, phase portrait, Lyapunov-like energy, and control
+  saturation so report writing and side-by-side comparisons no longer require
+  manual cropping from the combined figure.
+
+### Changed
+- Retuned the hub face eye hysteresis to require a larger wheel-angle excursion
+  before the eyes commit to the left or right bucket. `effects.eyesPhiDeadbandDeg`
+  was raised from `45 deg` to `50 deg`, which makes the display react more to
+  sustained displacement and less to transient drift around the center region.
+- Regenerated the hub runtime mirror and refreshed the committed buffered plot
+  artifacts so the checked-in outputs match the new diagnostics path and the
+  updated eye-deadband tuning.
+
 ## [1.7.4] - 2026-04-11
 
 ### Added

@@ -158,7 +158,7 @@ logging:
 effects:
   enabled: true                    # master switch for all effects
   eyesEnabled: true                # draw 2 eyes on the 5x5 display that follow phi
-  eyesPhiDeadbandDeg: 45.0         # phi must move this many degrees past the center band before the eyes switch direction
+  eyesPhiDeadbandDeg: 50.0         # phi must move this many degrees past the center band before the eyes switch direction
   qualityLightEnabled: true        # map RMS theta error to the center button LED, red to green
   qualityRmsWindowSamples: 50      # rolling window length in samples; 50 at 100 Hz is 0.5 s
   qualityGreenThresholdDeg: 1.0    # RMS tilt error at or below this lights full green
