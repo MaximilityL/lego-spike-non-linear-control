@@ -39,7 +39,7 @@ class ImuConfig:
     def __init__(self):
         self.tiltAxis = 'roll'
         self.tiltSign = 1
-        self.zeroOffset = -0.025220008
+        self.zeroOffset = 0.019779992
         self.gyroBias = 0.0
 
 
@@ -57,7 +57,7 @@ class ControlConfig:
         self.maxTiltRate = 10.0
         self.maxWheelRate = 17.44
         self.watchdogTimeout = 0.2
-        self.targetTilt = -0.045
+        self.targetTilt = -0.0
 
 
 class ControllerConfig:
@@ -72,7 +72,7 @@ class ControllerConfig:
         self.thetaDeadband = 0.0
         self.thetaDotDeadband = 0.0
         self.actuatorTau = 0.25
-        self.thetaDotFilterAlpha = 0.5
+        self.thetaDotFilterAlpha = 0.7
         self.innerNaturalFrequency = 5.0
         self.innerDampingRatio = 1.0
         self.surfaceGain = 3.0

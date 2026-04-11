@@ -52,7 +52,8 @@ imu:
   # zeroOffset: -0.785398   # radians, calibrated zero (-45 deg)
   # zeroOffset: -0.698131701   # radians, calibrated zero (-40 deg)
   # zeroOffset: -0.7801621756   # radians, calibrated zero (-44.7 deg)
-  zeroOffset: -0.025220008 # radians, calibrated zero (-1.445 deg)
+  # zeroOffset: -0.025220008 # radians, calibrated zero (-1.445 deg)
+  zeroOffset: 0.019779992 # radians, calibrated zero (+1.133 deg)
   gyroBias: 0.0               # rad/s, calibrated bias
 
 # Estimator parameters.
@@ -71,7 +72,8 @@ control:
   watchdogTimeout: 0.2        # s without an update before the safety monitor trips
   # targetTilt: -0.0675        # rad, default upright reference for the balance controller
   # targetTilt: -0.04      # rad, default upright reference for the balance controller
-  targetTilt: -0.045      # rad, default upright reference for the balance controller
+  # targetTilt: -0.045      # rad, default upright reference for the balance controller
+  targetTilt: -0.00      # rad, default upright reference for the balance controller
 
 
 # Balancing controller tuning.

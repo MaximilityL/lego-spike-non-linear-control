@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.1] - 2026-04-11
+
+### Added
+- New buffered telemetry path for the balance run. The control loop is no
+  longer coupled to the BLE print rate: a new hub program captures every
+  control iteration into preallocated packed float32 buffers (via
+  ustruct.pack_into on bytearrays, since Pybricks MicroPython does not ship
+  the array module), then dumps every sample over BLE once the run ends.
+  This removes the per iteration print blocking that previously forced
+  telemetry decimation to keep the 100 Hz loop honest, and gives the post
+  run analysis the full unthinned state and command trace.
+- New laptop side plotter that regenerates the hub runtime from
+  configs/Default.yaml, launches the buffered hub program through
+  pybricksdev, collects the post run DATA rows, and produces a diagnostic
+  PNG in the same layout as the live variant so buffered and live runs
+  remain visually comparable.
+
+### Changed
+- Shortened the default run duration on the buffered path to 25 s so the
+  full 100 Hz capture fits in hub RAM without decimating the sample stream.
+  The live run path is untouched.
+- Retuned the balance base point after the buffered runs exposed a residual
+  static bias: the IMU zero offset was recalibrated around the current
+  mechanical upright, targetTilt was brought back to zero so the outer loop
+  recentering term is the only authority over the steady lean, and the tilt
+  rate filter was raised to soften the inner loop response to gyro noise.
+  The regenerated hub runtime mirror is bumped to match.
+
 ## [1.7.0] - 2026-04-11
 
 ### Changed
