@@ -63,18 +63,50 @@ from a least-squares fit to the raw telemetry.
 
 ## How It Is Used
 
-The nonlinear controller uses this actuator lag only on the wheel-state part of
-the law.
+The geometry aware nonlinear controller treats the actuator lag as a core
+part of the plant rather than a small post hoc correction. The first order
+model
 
-The compensation strategy is:
+```text
+d(phiDot)/dt = (u - phiDot) / tau
+```
 
-1. compute a provisional wheel-velocity command,
-2. predict `phi` and `phiDot` one control interval ahead under a first-order
-   motor model parameterised by the identified `tau`,
-3. recompute the controller output using those predicted wheel states.
+implies that the instantaneous chassis linear acceleration is
 
-This anticipates that the measured `phi` and `phiDot` are lagging behind the
-command the controller has already issued.
+```text
+a = r * phiDDot = (r / tau) * (u - phiDot)
+```
+
+so the wheel velocity command required to produce a desired chassis
+acceleration `aDes` is
+
+```text
+u = phiDot + (tau / r) * aDes
+```
+
+This inversion is used directly inside the controller's fast inner loop:
+the Lyapunov style nominal law and the smooth sliding mode robust
+correction together compute a desired chassis acceleration, and this
+formula maps that acceleration into the wheel velocity command that
+Pybricks' `Motor.run(...)` actually accepts. Without the inversion, the
+wheel would never reach the velocity the controller is asking for in
+time, and the effective chassis acceleration would always be a small
+fraction of the commanded one. That mismatch is exactly what caused the
+older composite variable tanh law to plateau in performance on this
+hardware.
+
+The same `tau` value is also used in the outer recentering loop, where
+the reference tilt derivative is computed from the previous bounded
+command via `aEstPrev = (r / tau) * (uPrev - phiDot)`. Using the
+previous bounded command avoids the algebraic loop that would otherwise
+couple the new reference derivative to the new desired acceleration. If
+`tau <= 0` the controller treats the mapping as degenerate and falls
+back to `aEstPrev = 0` and `u = phiDot`; configurations that want the
+new law to work must therefore always provide a strictly positive
+`actuatorTau`.
+
+The current `configs/Default.yaml` sets `actuatorTau = 0.25 s` as a
+conservative nominal value drawn from the experiment above.
 
 ## Limitations
 

@@ -12,10 +12,16 @@ separates desktop-side development and testing from hub-side execution, while
 preserving one common runtime pipeline: raw sensor measurements are converted
 into a sign-corrected state estimate, a balance controller computes a symmetric
 wheel-velocity command, and a safety monitor validates that command before it
-reaches the motors. The current implementation includes a tanh-based nonlinear
-balance controller, an alternative PID controller, real-hardware Pybricks
-entrypoints, and automated tests for the estimator, controllers, safety logic,
-and runtime integration.
+reaches the motors. The current balance controller is a geometry aware robust
+nonlinear law: it builds a reduced sagittal pendulum model from configured
+chassis geometry, stabilizes the tilt error around a slow outer-loop reference
+with a Lyapunov style nominal acceleration plus a smooth sliding mode robust
+correction, and maps the resulting desired chassis acceleration through an
+identified first-order actuator lag into the wheel-velocity command accepted by
+the Pybricks motor API. A simpler discrete PID controller is retained behind the
+same factory interface as a baseline. Real-hardware Pybricks entrypoints (live
+telemetry and buffered post-run variants) and automated tests cover the
+estimator, controllers, safety logic, and runtime integration.
 
 ## 2. Suggested Report Structure
 
@@ -69,18 +75,62 @@ p = r * phi
 pDot = r * phiDot
 ```
 
-### 4.4. Nonlinear balance controller
+### 4.4. Reduced sagittal tilt dynamics
 
 ```text
-thetaError = theta - targetTilt
-s = kTheta * db(thetaError)
-  + kThetaDot * db(thetaDotFiltered)
-  - kPhi * phi
-  - kPhiDot * phiDot
-u = maxWheelRate * tanh(s / sScale)
+(I + m*l^2) * thetaDDot = m*g*l*sin(theta) - m*l*a + dTheta
+J         = I + m*l^2
+alphaHat  = m*g*l / J
+betaHat   = m*l   / J
+thetaDDot = alphaHat*sin(theta) - betaHat*a + DeltaTheta
 ```
 
-### 4.5. Runtime pipeline
+### 4.5. First-order wheel velocity actuator model
+
+```text
+d(phiDot)/dt = (u - phiDot) / tau
+a            = r * phiDDot = (r/tau) * (u - phiDot)
+u            = phiDot + (tau/r) * aDes          # inversion used by the controller
+```
+
+### 4.6. Geometry aware nonlinear balance controller
+
+Slow outer loop (position recentering reference):
+
+```text
+p              = r * phi
+pDot           = r * phiDot
+offsetRaw      = -(kOuterP*p + kOuterD*pDot)
+offset         = sat(offsetRaw, maxReferenceTiltOffset)
+thetaRef       = targetTilt + offset
+aEstPrev       = (r/tau) * (uPrev - phiDot)      # if tau > 0 else 0
+thetaRefDot    = -(kOuterP*pDot + kOuterD*aEstPrev)
+```
+
+Fast inner loop (Lyapunov style nominal law plus smooth robust correction):
+
+```text
+e       = theta - thetaRef
+eDot    = thetaDotUsed - thetaRefDot
+aNom    = ((alphaHat + lambda)*sin(e) + kDamping*eDot) / betaHat
+s       = eDot + cSurface*sin(e)
+aRobust = (kRobust / betaHat) * tanh(s / epsilonBoundary)
+aDes    = aNom + aRobust
+```
+
+Command mapping and saturation:
+
+```text
+uRaw    = phiDot + (tau/r)*aDes
+u       = sat(uRaw, maxWheelRate)
+```
+
+Gain conventions: `lambda = innerNaturalFrequency^2`,
+`kDamping = 2*innerDampingRatio*innerNaturalFrequency`,
+`cSurface = surfaceGain`, `kRobust = robustGain`,
+`epsilonBoundary = boundaryLayerWidth`.
+
+### 4.7. Runtime pipeline
 
 ```text
 measurement -> estimator -> controller -> safety monitor -> motors
@@ -98,10 +148,25 @@ the estimator to trust wheel-radius calibration more than necessary.
 Because it keeps hardware-specific mounting corrections out of the controller,
 so the controller sees one consistent physical meaning for each state variable.
 
-### Why use a tanh-based controller?
+### Why use a geometry aware nonlinear controller instead of a simple PID?
 
-Because `tanh` gives a smooth bounded nonlinear command without depending on a
-precise mechanical model of a LEGO build.
+Because the plant is structurally unstable and the actuator is not torque-like.
+The reduced tilt dynamics depend on mass, CoM height, and pitch inertia (partly
+known from the config), while the wheel channel behaves like a first-order lag
+with a measurable time constant. A law that reasons in chassis acceleration and
+then maps that acceleration through the actuator model fits this physics better
+than a generic PID on tilt error. A smooth sliding mode robust correction is
+added on top of the nominal Lyapunov law so the controller tolerates the
+remaining uncertainty in pitch inertia, contact, and the lag time constant.
+
+### Why not full feedback linearization?
+
+Because LEGO build parameters (mass, inertia, CoM height, wheel radius) are not
+known accurately enough to justify exact cancellation of the nonlinearities. A
+20% error in `alphaHat` would propagate as a persistent disturbance. The
+controller therefore uses nominal geometry for the Lyapunov style law and lets
+the smooth robust term absorb the mismatch, rather than trusting the geometry
+to be correct.
 
 ### Why keep a separate safety monitor?
 
@@ -139,9 +204,15 @@ fusion.
 
 ### Controller
 
-Describe the tanh controller as a model-light nonlinear velocity controller
-centered on tilt stabilization, with weaker wheel-state terms for drift
-suppression.
+Describe the active controller as a geometry aware robust nonlinear law with
+three layers: a slow outer loop that biases the tilt reference from the linear
+chassis position and velocity, a fast inner loop that combines a Lyapunov style
+nominal acceleration with a smooth sliding mode robust correction, and an
+actuator lag inversion that maps the desired chassis acceleration into the
+wheel-velocity command the Pybricks motor API accepts. Emphasize that the
+reduced tilt model is derived from chassis geometry (mass, CoM height, pitch
+inertia) rather than a hand-tuned composite variable, and that the robust term
+is the part responsible for tolerating the remaining parameter uncertainty.
 
 ### Safety
 
@@ -161,17 +232,33 @@ For a strong report, it is worth stating the limits clearly:
 - hardware tuning is empirical,
 - yaw control is out of scope,
 - the mock plant is useful for interface checks but not for proving hardware stability,
-- real performance still depends on battery state, wheel slip, and chassis details.
+- real performance still depends on battery state, wheel slip, and chassis details,
+- the pitch inertia in the config is an estimate, not a measured value; the
+  smooth robust term is what tolerates that mismatch,
+- the actuator time constant `tau` was read from a single motor step response
+  plot and is a nominal engineering value, not a least-squares identification,
+- there is no global Lyapunov proof; the nominal descent argument is only valid
+  near upright and assumes an ideal actuator, so the controller is not claimed
+  to be globally stabilizing.
 
 ## 9. Useful Source Files To Cite
 
 - `src/LegoBalance/StateEstimator.py`
 - `src/LegoBalance/NonLinearController.py`
 - `src/LegoBalance/PidController.py`
+- `src/LegoBalance/BalanceControllerFactory.py`
 - `src/LegoBalance/SafetyMonitor.py`
+- `src/LegoBalance/RobotConfig.py`
+- `configs/Default.yaml`
 - `src/HubPackageBalance.py`
+- `src/HubPackageBalanceBuffered.py`
+- `scripts/PlotHubPackageBalance.py`
+- `scripts/PlotHubPackageBalanceBuffered.py`
 - `examples/ClosedLoopSimulation.py`
 - `tests/test_NonLinearController.py`
 - `tests/test_PidController.py`
 - `tests/test_StateEstimator.py`
 - `tests/test_SafetyMonitor.py`
+- `docs/NonLinearControllerDesignGuide.md`
+- `docs/NonLinearControllerReview.md`
+- `docs/MotorActuatorLagIdentification.md`

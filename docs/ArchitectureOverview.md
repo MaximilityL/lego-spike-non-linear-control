@@ -137,10 +137,15 @@ active balance controller from `config.controller.algorithm`.
 
 Supported options are:
 
-- `nonlinear` or `tanh`: the default tanh composite-variable controller,
-- `pid`: the discrete PID controller.
+- `nonlinear` (default): the geometry aware robust nonlinear controller
+  with a slow outer recentering loop, a Lyapunov style inner loop with a
+  smooth sliding mode robust correction, and a first order actuator lag
+  inversion,
+- `tanh`: legacy alias kept for backward compatibility; it resolves to the
+  same geometry aware law as `nonlinear`,
+- `pid`: the discrete PID baseline controller.
 
-Because both controllers return the same `ControlOutput`, the runtime code does
+Because all options return the same `ControlOutput`, the runtime code does
 not change when switching controllers.
 
 ## 8. Runtime Paths
@@ -153,10 +158,27 @@ API validation and coarse sanity checks.
 
 ### Package-backed real balance run
 
-`src/HubPackageBalance.py` runs the shared estimator, selected balance
-controller, and safety monitor on the real hub. The companion script
-`scripts/PlotHubPackageBalance.py` launches it, captures telemetry, and plots
-tilt reference, full state, and raw versus applied command.
+Two hub entrypoints share the same estimator, selected balance controller,
+and safety monitor:
+
+- `src/HubPackageBalance.py`: live path. Telemetry is printed every few
+  control iterations so the laptop side plotter can render the run as it
+  happens. Per iteration BLE prints couple the control loop to the print
+  rate, which is why decimation is used on this path.
+- `src/HubPackageBalanceBuffered.py`: buffered path. Every control
+  iteration is captured into preallocated packed float32 buffers on the
+  hub, and the entire trace is dumped over BLE only after the run ends.
+  This removes the print blocking from the 100 Hz control loop and gives
+  post run analysis the full unthinned state and command trace. The run
+  duration is trimmed (currently 25 s) so the full capture fits in hub
+  RAM without decimation.
+
+Companion laptop plotters (`scripts/PlotHubPackageBalance.py` and
+`scripts/PlotHubPackageBalanceBuffered.py`) regenerate the hub runtime
+mirror from `configs/Default.yaml`, launch the appropriate hub entrypoint
+through `pybricksdev`, collect telemetry, and render tilt reference, full
+state, and raw versus applied command in a shared layout so live and
+buffered runs remain visually comparable.
 
 ### Self-contained hub bring-up
 
@@ -169,9 +191,12 @@ Several design choices are deliberate:
 
 - The estimator is minimal because sign correctness and unit consistency were
   more important than estimator sophistication in the first balancing phase.
-- The default nonlinear controller is model-light because LEGO mass, inertia,
-  and center-of-mass estimates are uncertain enough to make aggressive model
-  inversion risky.
+- The default nonlinear controller uses chassis geometry for its nominal
+  Lyapunov style law but refuses to rely on exact cancellation: a smooth
+  sliding mode robust correction absorbs the remaining uncertainty in mass,
+  pitch inertia, contact, and the actuator lag time constant. This is the
+  deliberate middle ground between "model light, no physics" and "full
+  feedback linearization."
 - Safety is its own module because safety logic needs a different failure model
   than control logic: it should fail to "stop", not fail silently.
 - Package-backed hub runs exist because they test the real shared code path,

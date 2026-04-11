@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.2] - 2026-04-11
+
+### Changed
+- Rewrote docs/NonLinearControllerReview.md from scratch so it reviews the
+  geometry aware robust nonlinear controller that is actually running, instead
+  of the composite variable tanh law that was removed in 1.7.0. The review now
+  derives the reduced sagittal pendulum plant, explains the first order
+  actuator lag inversion, builds the Lyapunov style nominal law and the smooth
+  sliding mode robust correction from first principles, walks through the slow
+  outer recentering loop and the algebraic loop fix, maps every equation to
+  the corresponding source line, performs a linearized stability check and a
+  region of attraction estimate against the current config, and lists the
+  honest open questions the controller does not try to resolve.
+- Updated docs/ImplementationReportGuide.md so the equations worth citing are
+  the reduced tilt dynamics, the actuator model, the outer/inner loop
+  equations, and the command mapping instead of the legacy composite variable
+  expression. The report-friendly design decisions and limitations sections
+  now reflect why exact feedback linearization was deliberately not chosen and
+  that the pitch inertia and actuator time constant are still nominal values.
+- Refreshed docs/FutureControlRoadmap.md so it starts from the current
+  controller rather than the old tanh law. Near term priorities now target
+  sweeping the new inner/outer loop gains on real hardware through the
+  buffered telemetry path, tightening the actuator lag identification on the
+  loaded two motor chassis, and measuring the pitch inertia directly so the
+  robust term can shrink.
+- Updated docs/ArchitectureOverview.md so the controller selection section
+  describes the geometry aware law (with `tanh` kept as a legacy alias) and
+  the hub entrypoint section mentions both the live telemetry path and the
+  new buffered post run variant.
+- Rewrote the "How It Is Used" section of docs/MotorActuatorLagIdentification.md
+  so it reflects how the geometry aware controller consumes `tau`: the
+  inversion turns a desired chassis acceleration into a wheel velocity command
+  and the outer loop estimates the previous step acceleration through the
+  same model to break the reference derivative's algebraic loop.
+
 ## [1.7.1] - 2026-04-11
 
 ### Added
