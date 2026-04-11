@@ -25,7 +25,18 @@ class ChassisConfig:
     wheelBase: float = 0.11
     bodyMass: float = 0.276
     bodyHeightCoM: float = 0.105
+    # bodyInertia is the pitch inertia of the chassis about the body center
+    # of mass. It is the nominal value used by the geometry aware nonlinear
+    # controller to build its reduced tilt model. The parallel axis term
+    # m*bodyHeightCoM^2 is added internally to obtain the axle referred
+    # moment of inertia. If this value is left at zero the box fallback
+    # below is used.
     bodyInertia: float = 0.00337
+    # Optional box body dimensions used to fall back to a rectangular
+    # approximation of the pitch inertia when bodyInertia is unknown or
+    # left at zero. Both must be positive for the fallback to trigger.
+    bodyLength: float = 0.0
+    bodyHeight: float = 0.0
 
 
 @dataclass
@@ -89,15 +100,56 @@ class ControllerConfig:
 
     algorithm: str = "pid"
     gravityCompGain: float = 0.5        # preserved for backward compat; unused by balance controllers
-    kTheta: float = 75.0                # dominant tilt gain (rad/s per rad)
-    kThetaDot: float = 4.5              # tilt-rate damping gain (rad/s per rad/s)
-    kPhi: float = 0.0                   # weak wheel-position centering gain (rad/s per rad)
-    kPhiDot: float = 0.0                # weak wheel-rate damping gain (dimensionless)
-    sScale: float = 14.0                # normalisation scale for composite variable (rad)
-    actuatorTau: float = 0.0            # effective wheel-speed time constant in seconds; 0 disables lag compensation
-    thetaDotFilterAlpha: float = 0.3    # IIR low-pass coefficient (0.0=off, 0.2=light noise filter)
-    thetaDeadband: float = 0.02094395
-    thetaDotDeadband: float = 0.61086524
+    # ----- Legacy tanh composite variable fields (no longer the active law) -----
+    # These are retained only so existing YAML files, the hub runtime mirror,
+    # and the HubPackageBalance banner keep loading. The current
+    # NonLinearController is the geometry aware robust law below and does not
+    # read any of these fields.
+    kTheta: float = 75.0
+    kThetaDot: float = 4.5
+    kPhi: float = 0.0
+    kPhiDot: float = 0.0
+    sScale: float = 14.0
+    thetaDeadband: float = 0.0
+    thetaDotDeadband: float = 0.0
+    # ----- Shared fields used by the new NonLinearController -----
+    # Effective wheel speed time constant inferred from the Port F velocity
+    # sweep. The geometry aware controller requires this to invert the
+    # actuator lag when mapping desired chassis acceleration to a wheel
+    # velocity command.
+    actuatorTau: float = 0.2
+    # Optional first order IIR low pass filter on the measured tilt rate.
+    # Use only to cut noise above the control bandwidth; heavy filtering
+    # adds phase lag and hurts stability.
+    thetaDotFilterAlpha: float = 0.0
+    # ----- Geometry aware robust nonlinear controller fields -----
+    # Inner loop nominal stiffness and damping. These are specified as the
+    # natural frequency and damping ratio of the small signal error
+    # dynamics eDDot + kDamping*eDot + lambda*e = 0 used by the controller.
+    innerNaturalFrequency: float = 6.0
+    innerDampingRatio: float = 1.0
+    # Sliding surface gain on the sin(e) term, in units of 1/s. It sets
+    # how much the tilt error contributes to the surface variable s that
+    # feeds the smooth robust correction.
+    surfaceGain: float = 3.0
+    # Magnitude of the smooth robust correction acceleration, in rad/s^2.
+    # Bigger values improve disturbance rejection and tolerance to model
+    # mismatch but can feel aggressive near upright.
+    robustGain: float = 2.0
+    # Boundary layer width of the tanh smoothing. Strictly positive. A
+    # very small value makes the robust term look like sign(s) and causes
+    # chatter; a large value softens it and can slow the response.
+    boundaryLayerWidth: float = 0.5
+    # Outer loop proportional and derivative gains on the chassis linear
+    # position and velocity. These bias the tilt reference so the robot
+    # slowly returns toward the origin. They must be slower than the
+    # inner loop to avoid fighting the fast anti fall law.
+    outerPositionGain: float = 0.0
+    outerVelocityGain: float = 0.0
+    # Symmetric cap on the outer loop tilt reference offset, in radians.
+    # Prevents the recentering loop from asking for unreasonable lean.
+    maxReferenceTiltOffset: float = 0.1
+    # ----- PID baseline controller fields -----
     pidKp: float = 11.0                 # proportional gain, matching the referenced example
     pidKi: float = 4.2                  # integral gain, matching the referenced example
     pidKd: float = 92.0                 # derivative gain, matching the referenced example
@@ -152,6 +204,16 @@ class RobotConfig:
             raise ValueError("chassis.wheelRadius must be positive")
         if self.chassis.wheelBase <= 0:
             raise ValueError("chassis.wheelBase must be positive")
+        if self.chassis.bodyMass <= 0:
+            raise ValueError("chassis.bodyMass must be positive")
+        if self.chassis.bodyHeightCoM <= 0:
+            raise ValueError("chassis.bodyHeightCoM must be positive")
+        if self.chassis.bodyInertia < 0:
+            raise ValueError("chassis.bodyInertia must be non negative")
+        if self.chassis.bodyLength < 0:
+            raise ValueError("chassis.bodyLength must be non negative")
+        if self.chassis.bodyHeight < 0:
+            raise ValueError("chassis.bodyHeight must be non negative")
         self.motors.leftPort = _NormalizeRequiredMotorPort(
             self.motors.leftPort,
             "motors.leftPort",
@@ -211,6 +273,22 @@ class RobotConfig:
             raise ValueError("controller.actuatorTau must be non negative")
         if not (0.0 <= self.controller.thetaDotFilterAlpha < 1.0):
             raise ValueError("controller.thetaDotFilterAlpha must be in [0.0, 1.0)")
+        if self.controller.innerNaturalFrequency <= 0:
+            raise ValueError("controller.innerNaturalFrequency must be positive")
+        if self.controller.innerDampingRatio < 0:
+            raise ValueError("controller.innerDampingRatio must be non negative")
+        if self.controller.surfaceGain < 0:
+            raise ValueError("controller.surfaceGain must be non negative")
+        if self.controller.robustGain < 0:
+            raise ValueError("controller.robustGain must be non negative")
+        if self.controller.boundaryLayerWidth <= 0:
+            raise ValueError("controller.boundaryLayerWidth must be strictly positive")
+        if self.controller.outerPositionGain < 0:
+            raise ValueError("controller.outerPositionGain must be non negative")
+        if self.controller.outerVelocityGain < 0:
+            raise ValueError("controller.outerVelocityGain must be non negative")
+        if self.controller.maxReferenceTiltOffset < 0:
+            raise ValueError("controller.maxReferenceTiltOffset must be non negative")
         if self.controller.pidKp < 0:
             raise ValueError("controller.pidKp must be non negative")
         if self.controller.pidKi < 0:

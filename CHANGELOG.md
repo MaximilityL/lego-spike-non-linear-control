@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-04-11
+
+### Changed
+- Replaced the legacy tanh composite-variable balancer with a geometry-aware
+  robust nonlinear controller. The new law separates a slow wheel-position
+  recentering reference loop from the fast tilt stabilizer, derives the
+  reduced tilt model from chassis mass/CoM/inertia, and maps desired chassis
+  acceleration through the identified first-order actuator lag before issuing
+  wheel-speed commands.
+- Extended the shared chassis/controller config and the generated hub runtime
+  with the geometry and tuning fields the new law needs, including the body
+  dimensions used for the inertia fallback, the inner/outer loop gains, the
+  smooth robust-term settings, and the bounded reference-tilt offset.
+- Updated the hub balance banner, the nonlinear-controller design/review
+  docs, and the refreshed live-balance plot to reflect the new control
+  structure instead of the old tanh gain set.
+
+### Tests
+- Reworked controller/config coverage around the new logic: geometry-derived
+  dynamics, inertia fallback behavior, outer-loop saturation, actuator
+  mapping, filter/reset state handling, and legacy alias compatibility.
+
 ## [1.6.0] - 2026-04-10
 
 ### Changed

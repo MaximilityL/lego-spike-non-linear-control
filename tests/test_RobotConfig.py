@@ -19,7 +19,7 @@ def test_DefaultConfigLoadsAndValidates():
     config = LoadConfig(applyLocalOverride=False)
     assert isinstance(config, RobotConfig)
     assert config.chassis.wheelRadius == pytest.approx(0.0285)
-    assert config.chassis.wheelBase == pytest.approx(0.11)
+    assert config.chassis.wheelBase == pytest.approx(0.1275)
     assert config.motors.leftPort == "B"
     assert config.motors.rightPort == "F"
     assert config.motors.rightAuxPort == "D"

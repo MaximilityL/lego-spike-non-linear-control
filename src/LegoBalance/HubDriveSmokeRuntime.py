@@ -13,10 +13,12 @@ small Pybricks-friendly config object because the hub cannot parse YAML.
 class ChassisConfig:
     def __init__(self):
         self.wheelRadius = 0.0285
-        self.wheelBase = 0.11
-        self.bodyMass = 0.276
-        self.bodyHeightCoM = 0.105
-        self.bodyInertia = 0.00337
+        self.wheelBase = 0.1275
+        self.bodyMass = 0.409
+        self.bodyHeightCoM = 0.075
+        self.bodyInertia = 0.000637
+        self.bodyLength = 0.055
+        self.bodyHeight = 0.1275
 
 
 class MotorsConfig:
@@ -67,10 +69,18 @@ class ControllerConfig:
         self.kPhi = 0.0
         self.kPhiDot = 0.0
         self.sScale = 20.0
-        self.actuatorTau = 0.25
-        self.thetaDotFilterAlpha = 0.0
         self.thetaDeadband = 0.0
         self.thetaDotDeadband = 0.0
+        self.actuatorTau = 0.25
+        self.thetaDotFilterAlpha = 0.0
+        self.innerNaturalFrequency = 6.0
+        self.innerDampingRatio = 1.0
+        self.surfaceGain = 3.0
+        self.robustGain = 2.0
+        self.boundaryLayerWidth = 0.5
+        self.outerPositionGain = 0.0
+        self.outerVelocityGain = 0.0
+        self.maxReferenceTiltOffset = 0.1
         self.pidKp = 200.0
         self.pidKi = 5.0
         self.pidKd = 80.0
@@ -83,7 +93,7 @@ class ControllerConfig:
 class DriveConfig:
     def __init__(self):
         self.loopPeriodMs = 20
-        self.printEveryN = 10
+        self.printEveryN = 1
         self.stopDurationMs = 50
         self.driveDurationMs = 5000
         self.testSpeed = 17.44

@@ -1,236 +1,354 @@
 # NonLinearController Design Guide
 
-This document explains the implemented balance controller in
-`src/LegoBalance/NonLinearController.py`.
-
-The controller is already real code, not a placeholder. The goal of this note
-is to make its design choices, equations, and tuning knobs easy to explain in a
-report and easy to revisit during later tuning.
+This document explains the active balance controller in
+`src/LegoBalance/NonLinearController.py`. It replaces the earlier model light
+tanh composite variable guide. The current controller is a geometry aware
+robust nonlinear law that uses the identified actuator lag model to map a
+desired chassis acceleration into the wheel velocity command.
 
 ## 1. Design Goal
 
-The controller stabilizes the robot around upright using the sign-corrected
-state:
+The controller stabilizes the two wheel inverted pendulum around upright
+using the canonical state provided by the estimator:
 
 ```text
 x = [theta, thetaDot, phi, phiDot]
 ```
 
-The main priority is tilt stabilization. Wheel position and wheel speed appear
-only as weaker terms to suppress long-term walk-off.
+- `theta`: body tilt angle in radians, positive means forward lean
+- `thetaDot`: body tilt rate in rad/s
+- `phi`: mean wheel rotation angle in radians, positive means rolled forward
+- `phiDot`: mean wheel rotation rate in rad/s
 
-The controller outputs symmetric wheel-velocity commands:
+Linear chassis position and velocity are derived with the wheel radius:
 
 ```text
-u_left = u_right = u
+p    = r * phi
+pDot = r * phiDot
 ```
 
-That matches pure sagittal-plane balancing and maps directly to Pybricks
-`Motor.run(...)`.
-
-## 2. Why A Model-Light Nonlinear Controller
-
-We deliberately avoided a controller that depends heavily on precise model
-parameters such as:
-
-- body mass,
-- body inertia,
-- center-of-mass height,
-- motor torque constants.
-
-Those parameters are hard to estimate accurately on a LEGO build, and a bad
-model-based compensation term can hurt more than it helps.
-
-Instead, the implemented controller trusts:
-
-- measured tilt,
-- measured tilt rate,
-- measured wheel rotation,
-- configured command limits.
-
-It does not try to cancel gravity explicitly through a fragile feedforward term.
-
-## 3. Implemented Control Law
-
-The controller computes a balance-point error first:
+The controller outputs symmetric wheel velocity commands for pure sagittal
+balance:
 
 ```text
-thetaError = theta - targetTilt
+uLeft = uRight = u
 ```
 
-`targetTilt` lets the controller balance around a small configured lean instead
-of forcing perfect geometric verticality. That is useful when the IMU zero,
-center of mass, or wheel bias would otherwise create steady drift.
+## 2. Why Not The Old Tanh Composite Variable Law
 
-After optional filtering and deadbanding, the controller forms a composite
-stabilizing variable:
+The earlier controller collapsed the full state into a single composite
+variable `s = kTheta*theta + kThetaDot*thetaDot - kPhi*phi - kPhiDot*phiDot`
+and ran it through `u = uMax * tanh(s/sScale)`. That design was deliberately
+model light. It worked, but it had two structural issues that the new law
+fixes:
+
+1. It treated tilt gains and wheel gains as a flat scalar surface, so the
+   controller could not cleanly separate the fast anti fall loop from the
+   slow recentering loop.
+2. It did not account for the identified first order actuator lag, so the
+   wheel velocity command it issued was not the velocity the actuator
+   actually delivered.
+
+The new controller splits the problem into an inner tilt stabilizer, a slow
+outer recentering loop, and an actuator lag inversion that maps a desired
+chassis acceleration into a wheel velocity command the motor actually
+tracks.
+
+## 3. Reduced Plant Model
+
+The sagittal tilt dynamics reduce to:
 
 ```text
-s = kTheta    * db(thetaError)
-  + kThetaDot * db(thetaDotFiltered)
-  - kPhi      * phi
-  - kPhiDot   * phiDot
-```
-
-The wheel command is then:
-
-```text
-uSoft = maxWheelRate * tanh(s / sScale)
-u     = sat(uSoft, maxWheelRate)
+(I + m*l^2) * thetaDDot = m*g*l*sin(theta) - m*l*a + dTheta
 ```
 
 where:
 
-- `db(...)` is a continuous deadband,
-- `tanh(...)` gives a smooth bounded nonlinearity,
-- `sat(...)` is a hard symmetric saturation backstop.
+- `m` is the body mass,
+- `l` is the vertical offset from the wheel axle to the body center of mass,
+- `I` is the pitch inertia of the body about its center of mass,
+- `g = 9.81 m/s^2`,
+- `a = pDDot` is the chassis linear acceleration,
+- `dTheta` lumps every unmodeled effect.
 
-The controller returns:
-
-```python
-ControlOutput(
-    leftCommand=u,
-    rightCommand=u,
-    mode=ControlMode.Velocity,
-    timestamp=state.timestamp,
-)
-```
-
-## 4. Meaning Of Each Term
-
-### `kTheta`
-
-The dominant restoring gain. If the robot falls before the wheels react
-strongly enough, this is usually the first gain to increase.
-
-### `kThetaDot`
-
-The damping gain. This term reduces overshoot and oscillation around upright.
-
-### `kPhi`
-
-A weak centering term on wheel position. It is not needed for basic balance,
-but it helps prevent slow walk-off over time.
-
-### `kPhiDot`
-
-A weak damping term on wheel speed. It supports drift suppression without
-dominating the tilt response.
-
-### `sScale`
-
-The normalization factor before `tanh`. It controls how quickly the nonlinear
-command approaches the wheel-rate limit.
-
-- smaller `sScale`: more aggressive response, earlier saturation,
-- larger `sScale`: softer response, wider quasi-linear region.
-
-### `thetaDeadband` and `thetaDotDeadband`
-
-These reduce sensor-noise-driven twitch near upright. The deadband is
-continuous rather than stepwise so the command remains smooth.
-
-### `thetaDotFilterAlpha`
-
-An optional first-order IIR filter on `thetaDot`. This is meant for noise
-reduction, not for stability by itself. Too much filtering adds phase lag and
-can worsen oscillation.
-
-## 5. Why `tanh`
-
-`tanh` gives three useful properties at once:
-
-1. It is approximately linear near zero, so small-error behavior still looks
-   like familiar state feedback.
-2. It is smooth, so command transitions are not abrupt.
-3. It is bounded, so the controller naturally respects the motor-rate ceiling.
-
-Near upright, the effective small-signal gains are approximately:
+Let `J = I + m*l^2`. Dividing through gives:
 
 ```text
-kTheta_eff    = maxWheelRate * kTheta / sScale
-kThetaDot_eff = maxWheelRate * kThetaDot / sScale
+thetaDDot = alphaHat * sin(theta) - betaHat * a + DeltaTheta
+alphaHat  = (m*g*l) / J
+betaHat   = (m*l)   / J
 ```
 
-That makes `sScale` and `maxWheelRate` just as important as the raw gain values
-when explaining the closed-loop behavior.
+Both `alphaHat` and `betaHat` are computed from the configured geometry in
+`chassis.bodyMass`, `chassis.bodyHeightCoM`, and `chassis.bodyInertia`.
 
-## 6. Why The Wheel Terms Have Negative Sign
+The configured `bodyInertia` is the pitch inertia about the body center of
+mass. The parallel axis term `m*l^2` is added internally. When
+`bodyInertia` is zero or missing, the controller falls back to a
+rectangular body approximation using `chassis.bodyLength` and
+`chassis.bodyHeight`:
 
-Positive `phi` means the robot has rolled forward. If the robot keeps drifting
-forward while nearly upright, we want the controller to bias the command
-slightly backward. That is why `phi` and `phiDot` enter with negative sign in
-the composite variable.
+```text
+I ~= m * (bodyLength^2 + bodyHeight^2) / 12
+```
 
-These terms are intentionally weaker than the tilt terms. If they are too
-large, the controller starts fighting wheel drift more aggressively than body
-tilt, which is usually the wrong priority for a balancing robot.
+That fallback is an estimate; the controller documents it as such. If no
+inertia source is available, construction fails loudly rather than
+silently substituting a constant.
 
-## 7. Implementation Details That Matter
+## 4. Actuator Model
 
-The implementation includes a few practical details that are easy to miss when
-only reading the equation:
+Pybricks closes an internal velocity loop on the wheel, so the effective
+plant is not a torque source. The Port F sweep identified a first order
+response:
 
-- invalid states produce an immediate stop command,
-- NaN values produce an immediate stop command,
-- the command timestamp is preserved from the state,
-- the controller uses only scalar math so it stays MicroPython-safe,
-- `_Tanh(...)` falls back to a rational approximation if `math.tanh` is not
-  available on the hub runtime,
-- `Reset()` clears the optional `thetaDot` filter state.
+```text
+phiDotActualDot = (u - phiDot) / tau
+```
 
-These details are important because the same controller can run on desktop and
-on the real hub through the shared package path.
+Converting to linear acceleration with `p = r*phi` gives:
 
-## 8. Tuning Workflow
+```text
+a = r * phiDDot = (r / tau) * (u - phiDot)
+```
+
+Inverted, the desired chassis acceleration maps to a wheel velocity
+command:
+
+```text
+u = phiDot + (tau / r) * aDes
+```
+
+That mapping is mandatory. Without it, the controller would issue a
+velocity command whose steady state the actuator never actually produces.
+
+## 5. Slow Outer Loop
+
+The outer loop produces a bounded tilt reference offset from the linear
+chassis position and velocity. `targetTilt` stays the configured static
+bias used to correct assembly asymmetry; the outer loop adds a slow
+position centering lean around that base value:
+
+```text
+offsetRaw = -(kOuterP * p + kOuterD * pDot)
+offset    = sat(offsetRaw, maxReferenceTiltOffset)
+thetaRef  = targetTilt + offset
+```
+
+The saturation keeps the recentering loop from asking for an unreasonable
+lean that the inner loop could not track. The outer loop is intentionally
+slow so it does not dominate the fast anti fall loop.
+
+### Reference derivative
+
+The controller also needs `thetaRefDot` so the inner loop can form a
+proper error rate. Taking the time derivative of the unclamped reference:
+
+```text
+thetaRefDot = -(kOuterP * pDot + kOuterD * a)
+```
+
+The current chassis acceleration `a` is estimated from the previous
+bounded command through the actuator model, which breaks the algebraic
+loop that would otherwise couple `thetaRefDot` and the new `aDes`:
+
+```text
+aEstPrev = (r / tau) * (uPrev - phiDot)
+```
+
+When `tau <= 0` the estimate falls back to zero.
+
+## 6. Fast Inner Loop
+
+The inner loop uses a Lyapunov style tilt energy function:
+
+```text
+V(e, eDot) = 0.5 * eDot^2 + lambda * (1 - cos(e))
+```
+
+and chooses a nominal desired chassis acceleration so the ideal small
+signal error dynamics satisfy `eDDot + kDamping*eDot + lambda*e ~= 0`:
+
+```text
+aNom = ((alphaHat + lambda) * sin(e) + kDamping * eDot) / betaHat
+```
+
+Here `e = theta - thetaRef` and `eDot = thetaDot - thetaRefDot`.
+
+### Robust correction
+
+To absorb uncertainty in inertia, contact, friction and unmodeled terms,
+a smooth sliding surface like robust term is added on top of the nominal
+law:
+
+```text
+s       = eDot + cSurface * sin(e)
+aRobust = (kRobust / betaHat) * tanh(s / epsilonBoundary)
+aDes    = aNom + aRobust
+```
+
+Two invariants are enforced in the implementation:
+
+- the robust term is always smooth (`tanh`, never `sign`),
+- `epsilonBoundary` is strictly positive.
+
+Together that guarantees the command is continuous even under pure sliding
+behavior.
+
+## 7. Full Control Step
+
+```text
+1. Read state: theta, thetaDot, phi, phiDot
+2. Filter thetaDot lightly if thetaDotFilterAlpha > 0
+3. Compute p = r*phi and pDot = r*phiDot
+4. aEstPrev = (r/tau)*(uPrev - phiDot) if tau > 0 else 0
+5. offsetRaw   = -(kOuterP*p + kOuterD*pDot)
+   offset      = sat(offsetRaw, maxReferenceTiltOffset)
+   thetaRef    = targetTilt + offset
+6. thetaRefDot = -(kOuterP*pDot + kOuterD*aEstPrev)
+7. e    = theta - thetaRef
+   eDot = thetaDotUsed - thetaRefDot
+8. J = I + m*l^2
+   alphaHat = m*g*l / J
+   betaHat  = m*l / J
+9. aNom = ((alphaHat + lambda)*sin(e) + kDamping*eDot) / betaHat
+10. s   = eDot + cSurface*sin(e)
+11. aRobust = (kRobust/betaHat) * tanh(s / epsilonBoundary)
+12. aDes    = aNom + aRobust
+13. uRaw    = phiDot + (tau/r) * aDes
+14. uBound  = sat(uRaw, maxWheelRate)
+15. remember uBound as uPrev for the next step
+16. return symmetric ControlOutput(uBound, uBound, Velocity, timestamp)
+```
+
+## 8. Config Fields
+
+Geometry used by the controller:
+
+- `chassis.wheelRadius`
+- `chassis.bodyMass`
+- `chassis.bodyHeightCoM`
+- `chassis.bodyInertia` (pitch inertia about the body center of mass)
+- `chassis.bodyLength` and `chassis.bodyHeight` (box fallback, optional)
+
+Controller tuning:
+
+- `controller.innerNaturalFrequency`: sets the nominal small signal
+  natural frequency. `lambda = innerNaturalFrequency^2`. Bigger values
+  give a stiffer inner loop.
+- `controller.innerDampingRatio`: sets the nominal damping ratio.
+  `kDamping = 2*innerDampingRatio*innerNaturalFrequency`. One is a good
+  starting point.
+- `controller.surfaceGain`: the contribution of `sin(e)` to the sliding
+  surface variable `s`. Bigger values make the robust term react
+  earlier at small tilt errors.
+- `controller.robustGain`: magnitude of the smooth robust correction in
+  `rad/s^2`. Bigger values reject disturbances and tolerate model
+  mismatch but can feel aggressive near upright.
+- `controller.boundaryLayerWidth`: strictly positive tanh boundary
+  width. Very small values cause chatter; larger values soften the
+  response.
+- `controller.outerPositionGain`: rad per meter recentering gain on
+  linear chassis position. Must be much slower than the inner loop.
+- `controller.outerVelocityGain`: rad per (m/s) recentering gain on
+  linear chassis velocity. Also slow by design.
+- `controller.maxReferenceTiltOffset`: symmetric cap on the outer loop
+  tilt offset, in radians. Prevents the recentering loop from asking
+  for unreasonable lean.
+- `controller.actuatorTau`: identified wheel velocity actuator time
+  constant. Required to invert the actuator lag.
+- `controller.thetaDotFilterAlpha`: optional IIR smoothing on the
+  measured tilt rate. Use only for noise; heavy filtering adds phase
+  lag and hurts stability.
+
+Legacy fields such as `kTheta`, `kThetaDot`, `kPhi`, `kPhiDot`, `sScale`,
+`thetaDeadband`, and `thetaDotDeadband` remain in the config schema so
+older YAML and the hub runtime mirror keep loading. The current
+controller does not read any of them.
+
+## 9. Tuning Workflow
 
 A practical tuning order is:
 
-1. set `targetTilt` so the robot does not walk steadily in one direction,
-2. increase `kTheta` until the controller reacts strongly enough to catch lean,
-3. increase `kThetaDot` until oscillation is acceptably damped,
-4. adjust `sScale` to set how quickly the command saturates,
-5. add small `kPhi` and `kPhiDot` values only after tilt behavior is reasonable,
-6. widen deadbands or add light `thetaDot` filtering only if sensor noise is
-   causing chatter near upright.
+1. Verify the chassis geometry. Mass, CoM height, and bodyInertia drive
+   `alphaHat` and `betaHat`. Measure or estimate them before touching
+   any gain.
+2. Set `targetTilt` so the robot does not walk steadily in one
+   direction with `outerPositionGain = outerVelocityGain = 0`.
+3. Start the inner loop with conservative values such as
+   `innerNaturalFrequency = 6.0` and `innerDampingRatio = 1.0`. Increase
+   the natural frequency until the robot catches lean reliably.
+4. Adjust the damping ratio to remove oscillation. Stay near one.
+5. Add a modest `robustGain` (for example `2.0`) and a reasonable
+   `boundaryLayerWidth` (for example `0.5`). If the robot chatters
+   near upright, widen the boundary layer.
+6. Once the inner loop balances, enable the outer loop gradually. Start
+   with small `outerPositionGain` such as `0.5 rad/m` and a matching
+   `outerVelocityGain` that keeps the recentering critically damped.
+7. Leave `maxReferenceTiltOffset` at a small value (for example
+   `0.1 rad`, about six degrees) so the outer loop can never ask for
+   an unreasonable lean.
 
-Typical symptom-based adjustments:
+Symptom guide:
 
-- falls before correcting: increase `kTheta`,
-- oscillates around upright: increase `kThetaDot`,
-- too timid at moderate tilt: decrease `sScale`,
-- slams to the limit too easily: increase `sScale`,
-- balances but drifts: increase `kPhi` or `kPhiDot` slightly,
-- twitches near zero: increase deadbands or use a light `thetaDot` filter.
+- Falls before reacting: increase `innerNaturalFrequency`.
+- Oscillates around upright: increase `innerDampingRatio` or widen
+  `boundaryLayerWidth`.
+- Too gentle against a push: increase `robustGain`.
+- Chatters or buzzes near upright: widen `boundaryLayerWidth`.
+- Balances but drifts: enable or raise `outerPositionGain` and
+  `outerVelocityGain`.
+- Outer loop demands unreasonable lean: lower
+  `maxReferenceTiltOffset`.
 
-## 9. Interaction With The Safety Layer
+## 10. Handling Geometry Uncertainty
 
-The controller is not the final safety authority. It computes the raw balance
-command, then `SafetyMonitor.Check(...)` decides whether that command is allowed
-to reach the motors.
+The controller uses nominal configured geometry to form `alphaHat` and
+`betaHat`. These nominal values are not meant to be exact: the robust
+correction `aRobust = (kRobust/betaHat)*tanh(s/eps)` is the only thing
+that has to tolerate moderate parameter mismatch. This is intentional
+and documented in the controller source.
 
-That separation is intentional:
+The controller is not performing exact feedback linearization. It is
+performing Lyapunov style energy shaping with a smooth robust backup.
+
+## 11. Interaction With The Safety Layer
+
+The controller is not the final safety authority. It computes the raw
+balance command, then `SafetyMonitor.Check(...)` decides whether that
+command is allowed to reach the motors. The separation is intentional:
 
 - the controller focuses on control quality,
 - the safety monitor focuses on fault handling and stop behavior.
 
-## 10. Alternative Balance Path: PID
+The controller itself still guards against invalid state and any NaN in
+the state vector by returning a stop command immediately. That guard is
+a local courtesy so the safety monitor never has to see garbage.
 
-The repository also includes `PidController` as a simpler comparison baseline.
-It shares the same `ControlOutput` boundary and can be selected in config.
+## 12. MicroPython Safety
 
-For the report, the clean way to describe the design is:
+Only scalar arithmetic is used. The module binds `math.tanh` and
+`math.sin` at import time and falls back to tiny polynomial approximants
+when either function is missing from the runtime. There are no list or
+numpy allocations inside the control path, which keeps the controller
+safe to run unchanged on the SPIKE hub under Pybricks.
 
-- the tanh nonlinear controller is the main controller,
-- the PID controller is a baseline or comparison controller,
-- both run inside the same estimator/safety/runtime architecture.
+## 13. Alternative Balance Path: PID
 
-## 11. Recommended Report Language
+The repository still includes `PidController` as a simpler baseline. It
+shares the same `ControlOutput` boundary and can be selected in config
+via `controller.algorithm = "pid"`.
 
-If you want a concise report description, the controller can be summarized as:
+## 14. Recommended Report Language
 
-> A model-light nonlinear wheel-velocity controller was implemented around a
-> composite state variable built from tilt, tilt rate, wheel position, and
-> wheel rate. The command is generated through a bounded `tanh` nonlinearity so
-> that the controller remains smooth near upright and naturally saturates at the
-> validated wheel-rate limit.
+If you need a concise report description, the controller can be
+summarized as:
+
+> A geometry aware robust nonlinear wheel velocity controller was
+> implemented on top of the reduced tilt dynamics of the chassis. A slow
+> outer loop generates a bounded tilt reference from the mean wheel
+> position and velocity so the robot returns toward its starting point.
+> The inner loop combines a Lyapunov style nominal acceleration law
+> derived from the configured geometry with a smooth sliding surface
+> like robust correction, and a first order actuator lag inversion maps
+> the desired chassis acceleration into the wheel velocity command.

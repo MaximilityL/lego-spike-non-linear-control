@@ -66,6 +66,8 @@ class ChassisConfig:
         self.bodyMass = {_FmtFloat(config.chassis.bodyMass)}
         self.bodyHeightCoM = {_FmtFloat(config.chassis.bodyHeightCoM)}
         self.bodyInertia = {_FmtFloat(config.chassis.bodyInertia)}
+        self.bodyLength = {_FmtFloat(config.chassis.bodyLength)}
+        self.bodyHeight = {_FmtFloat(config.chassis.bodyHeight)}
 
 
 class MotorsConfig:
@@ -116,10 +118,18 @@ class ControllerConfig:
         self.kPhi = {_FmtFloat(config.controller.kPhi)}
         self.kPhiDot = {_FmtFloat(config.controller.kPhiDot)}
         self.sScale = {_FmtFloat(config.controller.sScale)}
-        self.actuatorTau = {_FmtFloat(config.controller.actuatorTau)}
-        self.thetaDotFilterAlpha = {_FmtFloat(config.controller.thetaDotFilterAlpha)}
         self.thetaDeadband = {_FmtFloat(config.controller.thetaDeadband)}
         self.thetaDotDeadband = {_FmtFloat(config.controller.thetaDotDeadband)}
+        self.actuatorTau = {_FmtFloat(config.controller.actuatorTau)}
+        self.thetaDotFilterAlpha = {_FmtFloat(config.controller.thetaDotFilterAlpha)}
+        self.innerNaturalFrequency = {_FmtFloat(config.controller.innerNaturalFrequency)}
+        self.innerDampingRatio = {_FmtFloat(config.controller.innerDampingRatio)}
+        self.surfaceGain = {_FmtFloat(config.controller.surfaceGain)}
+        self.robustGain = {_FmtFloat(config.controller.robustGain)}
+        self.boundaryLayerWidth = {_FmtFloat(config.controller.boundaryLayerWidth)}
+        self.outerPositionGain = {_FmtFloat(config.controller.outerPositionGain)}
+        self.outerVelocityGain = {_FmtFloat(config.controller.outerVelocityGain)}
+        self.maxReferenceTiltOffset = {_FmtFloat(config.controller.maxReferenceTiltOffset)}
         self.pidKp = {_FmtFloat(config.controller.pidKp)}
         self.pidKi = {_FmtFloat(config.controller.pidKi)}
         self.pidKd = {_FmtFloat(config.controller.pidKd)}

@@ -19,11 +19,13 @@ robot:
 chassis:
   wheelRadius: 0.0285         # measured wheel radius
   # wheelRadius: 0.0425         # measured wheel radius
-  wheelBase: 0.11             # distance between left and right wheel contact points
-  bodyMass: 0.276               # rough estimate, will be measured later
+  wheelBase: 0.1275             # distance between left and right wheel contact points
+  bodyMass: 0.409               # rough estimate, will be measured later
   # bodyHeightCoM: 0.1135         # height of the center of mass above the wheel axle
-  bodyHeightCoM: 0.105        # height of the center of mass above the wheel axle
-  bodyInertia: 0.00337          # rotational inertia of the body around the wheel axle
+  bodyHeightCoM: 0.075        # height of the center of mass above the wheel axle
+  bodyInertia: 0.000637        # pitch inertia of the body about the body center of mass
+  bodyLength: 0.055             # fore-aft body length; only used for the box inertia fallback
+  bodyHeight: 0.1275             # vertical body height; only used for the box inertia fallback
 
 # Motor and encoder limits.
 motors:
@@ -75,14 +77,19 @@ control:
 #
 # controller.algorithm:
 #   pid         : discrete PID law modeled on the referenced LEGO example
-#   tanh        : composite-variable tanh controller
-#   nonlinear   : alias of tanh
+#   tanh        : alias kept so older configs keep loading; resolves to the
+#                 geometry aware nonlinear controller below
+#   nonlinear   : geometry aware robust nonlinear controller (active)
 #
-# PID law used on this branch (internal math in degrees, output converted to rad/s):
-#   error       = tilt_deg - target_tilt_deg
-#   integral   += error * pidIntegralStep
-#   derivative  = error - prev_error
-#   result_dps  = kp*error + ki*integral + kd*derivative + ks*phi_deg
+# Nonlinear law (summary, see docs/NonLinearControllerDesignGuide.md):
+#   outer loop: thetaRef = targetTilt - sat(kOuterP*p + kOuterD*pDot, offsetMax)
+#   inner loop: aNom = ((alphaHat + lambda)*sin(e) + kD*eDot)/betaHat
+#               aRobust = (kRobust/betaHat)*tanh((eDot + cSurface*sin(e)) / eps)
+#               aDes = aNom + aRobust
+#   mapping  : u = phiDot + (tau/r)*aDes
+#
+# Where alphaHat and betaHat are computed from chassis geometry. The robust
+# term is the only nonlinearity that soaks up model mismatch.
 #
 # The signs are adapted to this repo's convention:
 #   positive tilt -> body leans forward
@@ -93,16 +100,28 @@ control:
 #   If the robot walks backward, make targetTilt more positive (lean forward).
 controller:
   algorithm: "nonlinear"            # pid | tanh | nonlinear
-  gravityCompGain: 0.5        # preserved for backward compat; not used by tanh controller
-  kTheta: 250.0                # tanh-only: dominant tilt gain (rad/s per rad)
-  kThetaDot: 25.0              # tanh-only: tilt-rate damping gain
-  kPhi: 0.0                   # tanh-only: wheel-position centering gain (rad/s per rad)
-  kPhiDot: 0.0                # tanh-only: wheel-rate damping gain (dimensionless)
-  sScale: 20.0                # tanh-only: composite-variable normalisation scale
-  actuatorTau: 0.25           # tanh-only: effective wheel-speed time constant inferred from the Port F velocity sweep
-  thetaDotFilterAlpha: 0.0   # tanh-only: IIR filter coeff
-  thetaDeadband: 0.00   # tanh-only: rad, ±1.2 deg tilt noise suppression
-  thetaDotDeadband: 0.0   # tanh-only: rad/s, ±35 deg/s tilt-rate noise suppression
+  gravityCompGain: 0.5        # preserved for backward compat; unused by balance controllers
+  # ----- Legacy tanh composite variable knobs (unused by the new law) -----
+  kTheta: 250.0               # legacy tanh gain; unused by the new controller
+  kThetaDot: 25.0             # legacy tanh gain; unused by the new controller
+  kPhi: 0.0                   # legacy tanh gain; unused by the new controller
+  kPhiDot: 0.0                # legacy tanh gain; unused by the new controller
+  sScale: 20.0                # legacy tanh gain; unused by the new controller
+  thetaDeadband: 0.0          # legacy tanh deadband; unused by the new controller
+  thetaDotDeadband: 0.0       # legacy tanh deadband; unused by the new controller
+  # ----- Shared fields used by the new NonLinearController -----
+  actuatorTau: 0.25           # effective wheel-speed time constant from Port F sweep
+  thetaDotFilterAlpha: 0.0    # IIR smoothing on measured tilt rate (0.0 = passthrough)
+  # ----- Geometry aware robust nonlinear controller tuning -----
+  innerNaturalFrequency: 6.0  # rad/s, nominal small-signal natural frequency
+  innerDampingRatio: 1.0      # dimensionless, nominal small-signal damping ratio
+  surfaceGain: 3.0            # 1/s, contribution of sin(e) to the sliding variable
+  robustGain: 2.0             # rad/s^2, magnitude of the smooth robust correction
+  boundaryLayerWidth: 0.5     # tanh boundary layer width on the surface variable
+  outerPositionGain: 0.0      # rad/m, slow recentering gain on linear position p
+  outerVelocityGain: 0.0      # rad/(m/s), slow recentering gain on linear velocity pDot
+  maxReferenceTiltOffset: 0.1 # rad, cap on how far the outer loop may lean the reference
+  # ----- PID baseline controller -----
   pidKp: 200.0                 # proportional gain from the referenced example
   pidKi: 5.0                  # integral gain from the referenced example
   pidKd: 80.0                 # derivative gain from the referenced example
@@ -117,7 +136,7 @@ controller:
 # autonomous motion.
 drive:
   loopPeriodMs: 20            # hub loop period for the package drive smoke test
-  printEveryN: 10              # emit one telemetry row every N control iterations
+  printEveryN: 1              # emit one telemetry row every N control iterations
   stopDurationMs: 50          # stop leg duration in the smoke schedule
   driveDurationMs: 5000       # forward/backward leg duration in the smoke schedule
   testSpeed: 17.44 #1.74532925199    # rad/s, 100 deg/s forward/backward smoke command

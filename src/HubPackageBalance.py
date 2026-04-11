@@ -188,20 +188,22 @@ def PrintBanner(config, loopPeriodMs, telemetryEveryN, controller):
         print(f"   pidPositionTargetDeg: {config.controller.pidPositionTargetDeg}")
     else:
         print(" Controller gains (NonLinearController):")
-        print(f"   kTheta              : {config.controller.kTheta}")
-        print(f"   kThetaDot           : {config.controller.kThetaDot}")
-        print(f"   kPhi                : {config.controller.kPhi}")
-        print(f"   kPhiDot             : {config.controller.kPhiDot}")
-        print(f"   sScale              : {config.controller.sScale}")
-        print(f"   thetaDotFilterAlpha : {config.controller.thetaDotFilterAlpha}")
-        print(f"   thetaDeadband       : {RadToDeg(config.controller.thetaDeadband):.2f} deg")
+        print(f"   bodyMass            : {config.chassis.bodyMass}")
+        print(f"   bodyHeightCoM       : {config.chassis.bodyHeightCoM}")
+        print(f"   bodyInertia (CoM)   : {config.chassis.bodyInertia}")
+        print(f"   wheelRadius         : {config.chassis.wheelRadius}")
+        print(f"   innerNaturalFreq    : {config.controller.innerNaturalFrequency}")
+        print(f"   innerDampingRatio   : {config.controller.innerDampingRatio}")
+        print(f"   surfaceGain         : {config.controller.surfaceGain}")
+        print(f"   robustGain          : {config.controller.robustGain}")
+        print(f"   boundaryLayerWidth  : {config.controller.boundaryLayerWidth}")
+        print(f"   outerPositionGain   : {config.controller.outerPositionGain}")
+        print(f"   outerVelocityGain   : {config.controller.outerVelocityGain}")
         print(
-            f"   thetaDotDeadband    : {RadPerSecToDegPerSec(config.controller.thetaDotDeadband):.2f} deg/s"
+            f"   maxRefTiltOffset    : {RadToDeg(config.controller.maxReferenceTiltOffset):.2f} deg"
         )
-        kEff = config.control.maxWheelRate * config.controller.kTheta / config.controller.sScale
-        dEff = config.control.maxWheelRate * config.controller.kThetaDot / config.controller.sScale
-        print(f"   kTheta_eff          : {kEff:.1f} rad/s per rad")
-        print(f"   kThetaDot_eff       : {dEff:.1f} (rad/s)/(rad/s)")
+        print(f"   actuatorTau         : {config.controller.actuatorTau}")
+        print(f"   thetaDotFilterAlpha : {config.controller.thetaDotFilterAlpha}")
     print(" Post-run diagnostic plot:")
     print("   python scripts/PlotHubPackageBalance.py")
     print("============================================================")
