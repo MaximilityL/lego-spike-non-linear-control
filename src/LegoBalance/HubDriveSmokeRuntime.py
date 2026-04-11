@@ -57,7 +57,7 @@ class ControlConfig:
         self.maxTiltRate = 10.0
         self.maxWheelRate = 17.44
         self.watchdogTimeout = 0.2
-        self.targetTilt = -0.04
+        self.targetTilt = -0.045
 
 
 class ControllerConfig:
@@ -72,14 +72,14 @@ class ControllerConfig:
         self.thetaDeadband = 0.0
         self.thetaDotDeadband = 0.0
         self.actuatorTau = 0.25
-        self.thetaDotFilterAlpha = 0.0
-        self.innerNaturalFrequency = 6.0
+        self.thetaDotFilterAlpha = 0.5
+        self.innerNaturalFrequency = 5.0
         self.innerDampingRatio = 1.0
         self.surfaceGain = 3.0
         self.robustGain = 2.0
-        self.boundaryLayerWidth = 0.5
-        self.outerPositionGain = 0.0
-        self.outerVelocityGain = 0.0
+        self.boundaryLayerWidth = 0.8
+        self.outerPositionGain = 0.5
+        self.outerVelocityGain = 0.15
         self.maxReferenceTiltOffset = 0.1
         self.pidKp = 200.0
         self.pidKi = 5.0
@@ -93,7 +93,7 @@ class ControllerConfig:
 class DriveConfig:
     def __init__(self):
         self.loopPeriodMs = 20
-        self.printEveryN = 1
+        self.printEveryN = 10
         self.stopDurationMs = 50
         self.driveDurationMs = 5000
         self.testSpeed = 17.44
