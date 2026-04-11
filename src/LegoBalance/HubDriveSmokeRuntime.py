@@ -107,6 +107,21 @@ class LoggingConfig:
         self.bufferSize = 2048
 
 
+class EffectsConfig:
+    def __init__(self):
+        self.enabled = True
+        self.eyesEnabled = True
+        self.eyesPhiDeadbandDeg = 45.0
+        self.qualityLightEnabled = True
+        self.qualityRmsWindowSamples = 50
+        self.qualityGreenThresholdDeg = 1.0
+        self.qualityRedThresholdDeg = 5.0
+        self.uprightChimeEnabled = False
+        self.uprightChimeFrequencyHz = 880
+        self.uprightChimeDurationMs = 15
+        self.uprightChimeMinIntervalMs = 250
+
+
 class RobotConfig:
     def __init__(self):
         self.name = 'LegoBalance Mk2'
@@ -119,6 +134,7 @@ class RobotConfig:
         self.controller = ControllerConfig()
         self.drive = DriveConfig()
         self.logging = LoggingConfig()
+        self.effects = EffectsConfig()
 
 
 def DefaultConfig():

@@ -156,6 +156,21 @@ class LoggingConfig:
         self.bufferSize = {int(config.logging.bufferSize)}
 
 
+class EffectsConfig:
+    def __init__(self):
+        self.enabled = {bool(config.effects.enabled)}
+        self.eyesEnabled = {bool(config.effects.eyesEnabled)}
+        self.eyesPhiDeadbandDeg = {_FmtFloat(config.effects.eyesPhiDeadbandDeg)}
+        self.qualityLightEnabled = {bool(config.effects.qualityLightEnabled)}
+        self.qualityRmsWindowSamples = {int(config.effects.qualityRmsWindowSamples)}
+        self.qualityGreenThresholdDeg = {_FmtFloat(config.effects.qualityGreenThresholdDeg)}
+        self.qualityRedThresholdDeg = {_FmtFloat(config.effects.qualityRedThresholdDeg)}
+        self.uprightChimeEnabled = {bool(config.effects.uprightChimeEnabled)}
+        self.uprightChimeFrequencyHz = {int(config.effects.uprightChimeFrequencyHz)}
+        self.uprightChimeDurationMs = {int(config.effects.uprightChimeDurationMs)}
+        self.uprightChimeMinIntervalMs = {int(config.effects.uprightChimeMinIntervalMs)}
+
+
 class RobotConfig:
     def __init__(self):
         self.name = {_FmtString(config.name)}
@@ -168,6 +183,7 @@ class RobotConfig:
         self.controller = ControllerConfig()
         self.drive = DriveConfig()
         self.logging = LoggingConfig()
+        self.effects = EffectsConfig()
 
 
 def DefaultConfig():

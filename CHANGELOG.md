@@ -5,6 +5,52 @@ All notable changes to this project will be documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.4] - 2026-04-11
+
+### Added
+- Added an `effects` section to `configs/Default.yaml` and a matching
+  `EffectsConfig` dataclass so the sound and light feedback on the buffered
+  balance run is configuration-driven. Every sub feature has its own toggle
+  on top of a master switch so the robot can run silent, with only the
+  button LED, with only the face, or with the full personality.
+- The buffered hub runtime now draws a face on the 5x5 display that is
+  driven off the smooth state the controller already computes, instead of
+  the raw tilt-rate or command signals that are too noisy to watch
+  directly:
+  - Eyes track `phi` through three buckets (left, center, right). The
+    bucket logic uses a hysteretic deadband so `phi` has to cross
+    `eyesPhiDeadbandDeg` outward and then rebound to 40 percent of that
+    value inward before the eyes switch direction, which prevents
+    chatter at the boundaries. The bucket sign is the opposite of `phi`
+    so the eyes look back at where the robot rolled from instead of
+    where it is rolling to.
+  - Mouth reflects balance quality: smile when the rolling RMS tilt
+    error is at or below `qualityGreenThresholdDeg`, frown when it is
+    at or above `qualityRedThresholdDeg`, flat bar in between. Eye
+    bucket changes and mouth category changes share a single redraw
+    path so the face always reflects the latest bucket plus the latest
+    quality category.
+- The center hub button LED now mirrors the same RMS tilt error as the
+  mouth, but as a continuous red-to-green gradient. The hue is computed
+  from a rolling window of squared theta error samples of length
+  `qualityRmsWindowSamples`, mapped linearly between the green and red
+  thresholds, and quantized to 10 degree hue steps so the LED does not
+  twitch on every control iteration when the error is slowly drifting.
+- Added an upright chime: a short beep every time `theta` crosses zero,
+  debounced by `uprightChimeMinIntervalMs` so successive crossings do not
+  chatter. Pybricks `Speaker.beep` is synchronous and exposes no stop
+  method on the current firmware, so the chime is implemented as a short
+  blocking beep whose duration is kept under the control loop period to
+  avoid disturbing the balancer.
+
+### Changed
+- Extended `scripts/GenerateHubDriveSmokeRuntime.py` and regenerated
+  `LegoBalance.HubDriveSmokeRuntime` so the hub side mirror carries every
+  effects field from YAML. The buffered balance runtime reads its effects
+  toggles and thresholds from that mirror just like the rest of the
+  control stack, so the same YAML edit reaches both the desktop loader
+  and the hub.
+
 ## [1.7.3] - 2026-04-11
 
 ### Added

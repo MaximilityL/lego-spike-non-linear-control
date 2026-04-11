@@ -23,7 +23,7 @@ Or run it directly after regenerating the hub-safe config:
 import ustruct
 
 from pybricks.hubs import PrimeHub
-from pybricks.parameters import Button, Port
+from pybricks.parameters import Button, Color, Port
 from pybricks.pupdevices import Motor
 from pybricks.tools import StopWatch, wait
 
@@ -289,6 +289,153 @@ def DumpBuffer(
     print("BUFFER_END")
 
 
+class EffectsState:
+    # Pybricks MicroPython is happier with plain classes than dataclasses, so
+    # everything the effects pipeline needs lives here as ordinary attributes.
+    def __init__(self, effectsCfg):
+        windowSize = int(effectsCfg.qualityRmsWindowSamples)
+        if windowSize < 1:
+            windowSize = 1
+        self.windowSize = windowSize
+        self.sqBuffer = [0.0] * windowSize
+        self.bufferIndex = 0
+        self.windowFilled = 0
+        self.sqSum = 0.0
+        self.eyesBucket = 0
+        self.mouthCategory = 0
+        self.lastThetaDeg = None
+        self.lastChimeMs = -1000000
+        self.lastLightHue = -1
+
+
+def DrawFace(hub, bucket, mouth):
+    # Horizontal face: eyes on row 1, mouth on rows 3-4. Bucket sign is the
+    # opposite of phi sign so the eyes look back where the robot came from
+    # instead of where it rolled. Mouth is smile/neutral/frown driven by
+    # balance quality (RMS theta error) thresholds.
+    hub.display.off()
+    if mouth > 0:
+        # Smile: corners lifted on row 3, center dropped on row 4.
+        hub.display.pixel(3, 1, 60)
+        hub.display.pixel(3, 3, 60)
+        hub.display.pixel(4, 2, 60)
+    elif mouth < 0:
+        # Frown: center lifted on row 3, corners dropped on row 4.
+        hub.display.pixel(3, 2, 60)
+        hub.display.pixel(4, 1, 60)
+        hub.display.pixel(4, 3, 60)
+    else:
+        # Neutral: flat bar on row 3.
+        hub.display.pixel(3, 1, 60)
+        hub.display.pixel(3, 2, 60)
+        hub.display.pixel(3, 3, 60)
+    if bucket < 0:
+        hub.display.pixel(1, 2, 100)
+        hub.display.pixel(1, 4, 100)
+    elif bucket > 0:
+        hub.display.pixel(1, 0, 100)
+        hub.display.pixel(1, 2, 100)
+    else:
+        hub.display.pixel(1, 1, 100)
+        hub.display.pixel(1, 3, 100)
+
+
+def InitializeEffects(hub, effectsCfg):
+    if not effectsCfg.enabled:
+        return None
+    state = EffectsState(effectsCfg)
+    if effectsCfg.eyesEnabled:
+        DrawFace(hub, state.eyesBucket, state.mouthCategory)
+    return state
+
+
+def UpdateEffects(state, effectsCfg, hub, thetaDeg, phiDeg, nowMs):
+    if state is None or not effectsCfg.enabled:
+        return
+
+    if effectsCfg.eyesEnabled:
+        enter = effectsCfg.eyesPhiDeadbandDeg
+        # Exit threshold is smaller than enter so phi has to rebound clearly
+        # past center before the eyes return, giving a clean hysteresis band.
+        exitGap = enter * 0.4
+        newBucket = state.eyesBucket
+        if state.eyesBucket == 0:
+            if phiDeg >= enter:
+                newBucket = 1
+            elif phiDeg <= -enter:
+                newBucket = -1
+        elif state.eyesBucket > 0:
+            if phiDeg <= exitGap:
+                newBucket = 0
+        else:
+            if phiDeg >= -exitGap:
+                newBucket = 0
+        if newBucket != state.eyesBucket:
+            state.eyesBucket = newBucket
+            DrawFace(hub, state.eyesBucket, state.mouthCategory)
+
+    if effectsCfg.qualityLightEnabled:
+        sq = thetaDeg * thetaDeg
+        state.sqSum -= state.sqBuffer[state.bufferIndex]
+        state.sqBuffer[state.bufferIndex] = sq
+        state.sqSum += sq
+        state.bufferIndex = (state.bufferIndex + 1) % state.windowSize
+        if state.windowFilled < state.windowSize:
+            state.windowFilled += 1
+        meanSq = state.sqSum / state.windowFilled
+        if meanSq < 0.0:
+            meanSq = 0.0
+        rmsDeg = meanSq ** 0.5
+        greenT = effectsCfg.qualityGreenThresholdDeg
+        redT = effectsCfg.qualityRedThresholdDeg
+        span = redT - greenT
+        if rmsDeg <= greenT or span <= 0.0:
+            ratio = 0.0
+        elif rmsDeg >= redT:
+            ratio = 1.0
+        else:
+            ratio = (rmsDeg - greenT) / span
+        hue = int(120.0 - 120.0 * ratio)
+        # Quantize to 10 degree hue steps so the LED does not twitch every
+        # loop iteration when the error is slowly drifting.
+        quantized = (hue // 10) * 10
+        if quantized != state.lastLightHue:
+            state.lastLightHue = quantized
+            hub.light.on(Color(quantized, 100, 100))
+
+        if rmsDeg <= greenT:
+            newMouth = 1
+        elif rmsDeg >= redT:
+            newMouth = -1
+        else:
+            newMouth = 0
+        if effectsCfg.eyesEnabled and newMouth != state.mouthCategory:
+            state.mouthCategory = newMouth
+            DrawFace(hub, state.eyesBucket, state.mouthCategory)
+
+    if effectsCfg.uprightChimeEnabled and state.lastThetaDeg is not None:
+        prev = state.lastThetaDeg
+        crossed = (prev > 0.0 and thetaDeg <= 0.0) or (prev < 0.0 and thetaDeg >= 0.0)
+        if crossed and (nowMs - state.lastChimeMs) >= effectsCfg.uprightChimeMinIntervalMs:
+            # Pybricks Speaker.beep is synchronous and has no stop method, so
+            # the call blocks for uprightChimeDurationMs. Keep the duration
+            # small compared to the control loop period.
+            hub.speaker.beep(
+                effectsCfg.uprightChimeFrequencyHz,
+                effectsCfg.uprightChimeDurationMs,
+            )
+            state.lastChimeMs = nowMs
+
+    state.lastThetaDeg = thetaDeg
+
+
+def ShutdownEffects(state, hub):
+    if state is None:
+        return
+    hub.display.off()
+    hub.light.off()
+
+
 def Main():
     config = DefaultConfig()
     loopPeriodMs = int(1000.0 / config.control.loopRate + 0.5)
@@ -315,6 +462,7 @@ def Main():
     estimator = StateEstimator(config)
     controller = BuildBalanceController(config)
     safety = SafetyMonitor(config)
+    effectsState = InitializeEffects(hub, config.effects)
 
     leftMotor.reset_angle(0)
     rightMotor.reset_angle(0)
@@ -362,6 +510,15 @@ def Main():
         phiDotDegPerSec = RadPerSecToDegPerSec(state.phiDot)
         rawCmdDegPerSec = RadPerSecToDegPerSec(rawCommand.leftCommand)
         safeCmdDegPerSec = RadPerSecToDegPerSec(safeCommand.leftCommand)
+
+        UpdateEffects(
+            effectsState,
+            config.effects,
+            hub,
+            thetaDeg,
+            phiDeg,
+            sw.time(),
+        )
 
         finalThetaDeg = thetaDeg
         finalThetaDotDegPerSec = thetaDotDegPerSec
@@ -426,6 +583,7 @@ def Main():
 
     StopMotors(leftMotor, rightMotor, rightAuxMotor)
     BrakeMotors(leftMotor, rightMotor, rightAuxMotor)
+    ShutdownEffects(effectsState, hub)
 
     if abortedByButton:
         print("CENTER BUTTON pressed, aborting balance run.")

@@ -151,3 +151,19 @@ logging:
   enabled: true
   level: "info"               # debug, info, warn, error
   bufferSize: 2048            # number of samples held in memory before flushing
+
+# Sound and light effects driven from the balance state. None of these
+# fields affect the control loop. Each feature can be toggled independently
+# so the robot can run silent or with its full personality.
+effects:
+  enabled: true                    # master switch for all effects
+  eyesEnabled: true                # draw 2 eyes on the 5x5 display that follow phi
+  eyesPhiDeadbandDeg: 45.0         # phi must move this many degrees past the center band before the eyes switch direction
+  qualityLightEnabled: true        # map RMS theta error to the center button LED, red to green
+  qualityRmsWindowSamples: 50      # rolling window length in samples; 50 at 100 Hz is 0.5 s
+  qualityGreenThresholdDeg: 1.0    # RMS tilt error at or below this lights full green
+  qualityRedThresholdDeg: 5.0      # RMS tilt error at or above this lights full red
+  uprightChimeEnabled: false        # short beep each time theta crosses zero
+  uprightChimeFrequencyHz: 880     # beep pitch
+  uprightChimeDurationMs: 15       # blocking beep length; Speaker.beep is synchronous in Pybricks so keep this under the control loop period (10 ms at 100 Hz) to avoid disturbing balance
+  uprightChimeMinIntervalMs: 250   # debounce so successive crossings do not chatter

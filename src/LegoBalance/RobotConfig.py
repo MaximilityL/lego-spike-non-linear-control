@@ -184,6 +184,31 @@ class LoggingConfig:
 
 
 @dataclass
+class EffectsConfig:
+    """Sound and light effects driven off the balance state.
+
+    None of these fields affect the control loop. Each feature can be
+    toggled independently from YAML so the robot can run silent or
+    with its full personality.
+    """
+
+    enabled: bool = True
+    eyesEnabled: bool = True
+    eyesPhiDeadbandDeg: float = 45.0
+    qualityLightEnabled: bool = True
+    qualityRmsWindowSamples: int = 50
+    qualityGreenThresholdDeg: float = 1.0
+    qualityRedThresholdDeg: float = 8.0
+    uprightChimeEnabled: bool = True
+    uprightChimeFrequencyHz: int = 880
+    # Pybricks Speaker.beep is synchronous, so this value blocks the control
+    # loop. Keep it well under the control loop period (10 ms at 100 Hz) to
+    # avoid disturbing balance. 15 ms is one skipped tick and is still audible.
+    uprightChimeDurationMs: int = 15
+    uprightChimeMinIntervalMs: int = 250
+
+
+@dataclass
 class RobotConfig:
     """Top level typed view of the YAML config."""
 
@@ -197,6 +222,7 @@ class RobotConfig:
     controller: ControllerConfig = field(default_factory=ControllerConfig)
     drive: DriveConfig = field(default_factory=DriveConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
+    effects: EffectsConfig = field(default_factory=EffectsConfig)
 
     def Validate(self) -> None:
         """Cheap consistency checks. Raises ``ValueError`` on failure."""
@@ -315,6 +341,22 @@ class RobotConfig:
             raise ValueError(
                 "drive.maxTiltForMotion must be less than or equal to control.maxTilt"
             )
+        if self.effects.eyesPhiDeadbandDeg < 0:
+            raise ValueError("effects.eyesPhiDeadbandDeg must be non negative")
+        if self.effects.qualityRmsWindowSamples <= 0:
+            raise ValueError("effects.qualityRmsWindowSamples must be positive")
+        if self.effects.qualityGreenThresholdDeg < 0:
+            raise ValueError("effects.qualityGreenThresholdDeg must be non negative")
+        if self.effects.qualityRedThresholdDeg <= self.effects.qualityGreenThresholdDeg:
+            raise ValueError(
+                "effects.qualityRedThresholdDeg must exceed qualityGreenThresholdDeg"
+            )
+        if self.effects.uprightChimeFrequencyHz <= 0:
+            raise ValueError("effects.uprightChimeFrequencyHz must be positive")
+        if self.effects.uprightChimeDurationMs < 0:
+            raise ValueError("effects.uprightChimeDurationMs must be non negative")
+        if self.effects.uprightChimeMinIntervalMs < 0:
+            raise ValueError("effects.uprightChimeMinIntervalMs must be non negative")
 
 
 def DeepMerge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
@@ -344,6 +386,7 @@ def _DictToConfig(data: dict[str, Any]) -> RobotConfig:
         controller=ControllerConfig(**(data.get("controller", {}) or {})),
         drive=DriveConfig(**(data.get("drive", {}) or {})),
         logging=LoggingConfig(**(data.get("logging", {}) or {})),
+        effects=EffectsConfig(**(data.get("effects", {}) or {})),
     )
 
 
