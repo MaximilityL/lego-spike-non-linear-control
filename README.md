@@ -24,6 +24,14 @@ If you are turning this project into a LaTeX report, start with these files:
 - [docs/NonLinearControllerDesignGuide.md](docs/NonLinearControllerDesignGuide.md)
 - [docs/TestStrategy.md](docs/TestStrategy.md)
 
+## Stabilization Demos
+
+Two recorded sessions of the robot holding upright under the tanh balance controller:
+
+![Stabilization session 0](docs/videos/example_0.gif)
+
+![Stabilization session 1](docs/videos/example_1.gif)
+
 ## 1. What We Built
 
 The implemented system has one clear runtime shape:

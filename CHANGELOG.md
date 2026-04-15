@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.6] - 2026-04-15
+
+### Added
+- Added a Stabilization Demos section to the top-level `README.md` that embeds
+  two recorded sessions of the robot holding upright under the tanh balance
+  controller. The clips live in `docs/videos/` as `example_0.gif` and
+  `example_1.gif` and give readers a visual sense of the controller behavior
+  before they dive into the architecture and controller docs.
+
 ## [1.7.5] - 2026-04-11
 
 ### Added
